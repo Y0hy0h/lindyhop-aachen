@@ -9,7 +9,7 @@ use super::id_map::{Id, IdMap, UnsafeId};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Event {
-    pub name: String,
+    pub title: String,
     pub teaser: String,
     pub description: String,
     pub occurrences: Vec<Occurrence>,
