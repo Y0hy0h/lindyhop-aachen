@@ -1,4 +1,6 @@
-$font-stack:    Helvetica, sans-serif;
+@import 'events';
+
+$font-stack: Helvetica, sans-serif;
 
 body {
   font: 100% $font-stack;
