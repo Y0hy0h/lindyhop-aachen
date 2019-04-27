@@ -31,7 +31,9 @@ fn index(store: State<Store>) -> Markup {
                 link href="static/main.css" rel="stylesheet";
             }
             body {
-                h1 { "Lindy Hop Aachen" }
+                header {
+                    h1 { "Lindy Hop Aachen" }
+                }
                 main {
                     ol.schedule {
                         @for entry in store.occurrences_by_date() {

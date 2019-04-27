@@ -33,11 +33,11 @@ ol.schedule {
         align-self: flex-start;
         margin-right: 0.5em;
         margin-bottom: 0.5em;
-        width: 6em;
+        width: 5.5em;
 
         font-size: 110%;
         color: $color_white;
-        background-color: $color_accent;
+        background-color: $color_primary;
         border-radius: 0.2em;
         
         padding: 0.3em;
@@ -70,7 +70,7 @@ ol.schedule {
         h2.title {
             grid-area: title;
 
-            color: $color_accent;
+            color: $color_primary;
             margin: 0;
         }
 
