@@ -106,7 +106,7 @@ fn html_from_occurrence(
         .map(|id| locations.get(&id));
 
     OccurrenceHtml {
-        time: html! {(occurrence.start.format("%H:%M"))},
+        time: html! {(occurrence.start.format("%H:%M")) " bis " (occurrence.end().format("%H:%M"))},
         location: html! { @match maybe_location {
                 Some(location) => (location.name),
                 None => "Steht noch nicht fest."
