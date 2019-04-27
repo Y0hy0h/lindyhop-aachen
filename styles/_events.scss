@@ -4,27 +4,36 @@ $color_card_background: $color_white;
 
 ol.schedule {
     &, ol {
-        margin: 0;
         padding: 0;
         list-style: none;
     }
+     
+    ol {
+        margin: 0;
+    }
 
-    display: grid;
-    grid-template-columns: auto;
-    grid-column-gap: 0.5em;
-    grid-row-gap: 1.5em;
-    justify-content: center;
+    display: flex;
+    flex-direction: column;
+    max-width: 30em;
+    margin: 0 auto;
+
+    > li + li {
+        margin-top: 1.5em;
+    }
 
     > li {
-        display: grid;
-        grid-row-gap: 0.5em;
+        display: flex;
+        flex-wrap: wrap;
     }
 
     .date {
         position: sticky;
         top: 0;
 
-        justify-self: flex-start;
+        align-self: flex-start;
+        margin-right: 0.5em;
+        margin-bottom: 0.5em;
+        width: 6em;
 
         font-size: 110%;
         color: $color_white;
@@ -36,6 +45,8 @@ ol.schedule {
     }
 
     .events {
+        flex: 13em;
+
         display: grid;
         grid-template-columns: auto;
         grid-row-gap: 0.5em;
