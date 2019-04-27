@@ -1,7 +1,11 @@
 @import 'events';
+@import 'colors';
 
 $font-stack: Helvetica, sans-serif;
 
 body {
   font: 100% $font-stack;
+  color: $color_black;
+
+  background-color: $color_background;
 }

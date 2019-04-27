@@ -49,7 +49,7 @@ fn render_entry(
     locations: &Locations,
 ) -> Markup {
     html! {
-        div.date-container { div.date { ( format_date(date) ) } }
+        div.date { ( format_date(date) ) }
         ol.events {
             @for occurrence_entry in entries {
                 li.event { ( render_occurrence(occurrence_entry, locations) ) }

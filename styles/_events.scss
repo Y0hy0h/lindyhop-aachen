@@ -1,3 +1,7 @@
+@import 'colors';
+
+$color_card_background: $color_white;
+
 ol.schedule {
     &, ol {
         margin: 0;
@@ -16,13 +20,16 @@ ol.schedule {
         grid-row-gap: 0.5em;
     }
 
-    .date-container {
-        justify-self: flex-start;
-    }
-
     .date {
         position: sticky;
         top: 0;
+
+        justify-self: flex-start;
+
+        font-size: 110%;
+        color: $color_white;
+        background-color: $color_accent;
+        border-radius: 0.2em;
         
         padding: 0.3em;
         box-shadow: 0.05em 0.05em 0.2em rgba(0, 0, 0, 0.2);
@@ -43,12 +50,17 @@ ol.schedule {
         grid-row-gap: 0.5em;
         grid-column-gap: 0.5em;
 
+        background-color: $color_card_background;
+        border-radius: 0.3em;
+
         padding: 0.5em;
         max-width: 20em;
         box-shadow: 0.1em 0.1em 0.3em rgba(0, 0, 0, 0.2);
 
         h2.title {
             grid-area: title;
+
+            color: $color_accent;
             margin: 0;
         }
 
