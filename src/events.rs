@@ -22,7 +22,13 @@ pub struct Occurrence {
     pub location_id: UnsafeId,
 }
 
-type Duration = u64;
+type Duration = u32;
+
+impl Occurrence {
+    pub fn end(&self) -> NaiveDateTime {
+        self.start + chrono::Duration::minutes(i64::from(self.duration))
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Location {
