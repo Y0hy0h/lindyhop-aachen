@@ -26,7 +26,7 @@ fn index(store: State<Store>) -> Markup {
 
     html! {
         ( DOCTYPE )
-        html {
+        html lang="de" {
             head {
                 link href="static/main.css" rel="stylesheet";
             }
