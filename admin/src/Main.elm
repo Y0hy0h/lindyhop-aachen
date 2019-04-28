@@ -153,6 +153,8 @@ update msg model =
                             ( Loaded key (Overview newSubModel), Cmd.none )
 
                         Err error ->
+                            let _ = Debug.log "error" error
+                            in
                             ( Loaded key ErrorLoading, Cmd.none )
 
                 _ ->

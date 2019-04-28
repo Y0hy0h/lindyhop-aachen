@@ -48,7 +48,7 @@ updateLoad msg model =
             Result.map Model result
 
 
-view : Model -> List (Html msg)
+view : Model -> List (Html msg) 
 view model =
     [ h1 [] [ text "Admin" ]
     , h2 [] [ text "Veranstaltungen" ]
@@ -138,7 +138,7 @@ viewEvent locations event =
                    )
     in
     div []
-        [ text event.name
+        [ text event.title
         , ol [ css [ listStyle, Css.paddingLeft (em 1) ] ] listItems
         ]
 
