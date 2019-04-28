@@ -81,12 +81,14 @@ fn render_occurrence((occurrence, event): &(&Occurrence, &Event), locations: &Lo
     html! {
         @let entry =  html_from_occurrence(occurrence, event, locations);
         h2.title { ( entry.title )}
-        div.quick-info {
-            div.time { ( entry.time ) }
-            div.location { ( entry.location ) }
-        }
-        div.description {
-            div.teaser { ( entry.teaser ) }
+        div.content {
+            ul.quick-info {
+                li.time { ( entry.time ) }
+                li.location { ( entry.location ) }
+            }
+            div.description {
+                div.teaser { ( entry.teaser ) }
+            }
         }
     }
 }

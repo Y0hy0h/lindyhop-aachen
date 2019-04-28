@@ -3,12 +3,12 @@
 $color_card_background: $color_white;
 
 ol.schedule {
-    &, ol {
+    &, ol, ul {
         padding: 0;
         list-style: none;
     }
      
-    ol {
+    ol, ul {
         margin: 0;
     }
 
@@ -45,7 +45,7 @@ ol.schedule {
     }
 
     .events {
-        flex: 13em;
+        flex: 20em;
 
         display: grid;
         grid-template-columns: auto;
@@ -53,37 +53,47 @@ ol.schedule {
     }
 
     .event {
-        display: grid;
-        grid-template-areas:
-            "title title"
-            "infos description";
-        grid-template-columns: auto 1fr;
-        grid-row-gap: 0.5em;
+        display: flex;
+        flex-direction: column;
 
         background-color: $color_card_background;
         border-radius: 0.3em;
 
         padding: 0.5em;
-        max-width: 20em;
         box-shadow: 0.1em 0.1em 0.3em rgba(0, 0, 0, 0.2);
 
         h2.title {
-            grid-area: title;
-
+            font-size: 150%;
             color: $color_primary;
             margin: 0;
+            margin-bottom: 0.5em;
+        }
+
+        .content {
+            display: grid;
+            grid-gap: 0.5em;
+            grid-template-columns: repeat(auto-fit, minmax(8em, max-content));
+
+            font-size: 110%;
         }
 
         .quick-info {
-            grid-area: infos;
+            padding: 0.2em;
+            color: $color_accent;
+            border: 0.1em solid $color_light_accent;
+            border-radius: 0.5em;
+            box-shadow: inset 0 0 0.1em rgba(0, 0, 0, 0.2);
 
-            padding-right: 0.5em;
-            margin-right: 0.5em;
-            border-right: 2px solid $color_accent;
+            .time::before {
+                content: "🕙";
+            }
+
+            .location::before {
+                content: "🗺️";
+            }
         }
 
         .description {
-            grid-area: description;
         }
     }
 }
