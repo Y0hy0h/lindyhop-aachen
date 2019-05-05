@@ -1,4 +1,4 @@
-#![feature(proc_macro_hygiene, decl_macro, map_get_key_value)]
+#![feature(proc_macro_hygiene, decl_macro, custom_attribute)]
 
 mod events;
 mod id_map;
@@ -8,11 +8,20 @@ use std::sync::RwLock;
 
 #[macro_use]
 extern crate rocket;
+#[macro_use]
+extern crate rocket_contrib;
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 use chrono::prelude::*;
+use diesel::prelude::*;
+use diesel::SqliteConnection;
 use maud::{html, Markup, DOCTYPE};
+use rocket::fairing::AdHoc;
 use rocket::response::status::NotFound;
 use rocket::response::NamedFile;
-use rocket::State;
+use rocket::{Rocket, State};
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 use rocket_contrib::uuid::Uuid;
@@ -234,6 +243,49 @@ fn admin() -> Option<NamedFile> {
     NamedFile::open(Path::new("admin/dist/index.html")).ok()
 }
 
+#[get("/loc")]
+fn dummy_loc(conn: DbConn) -> Markup {
+    use events::schema::locations::dsl::*;
+    use events::SqlLocation;
+    let locs = locations
+        .load::<SqlLocation>(&conn.0)
+        .expect("Error loading dummy loc.");
+    html! {
+        ul {
+        @for loc in locs {
+            li { (loc.name)}
+        }
+        }
+    }
+}
+
+#[database("sqlite_database")]
+pub struct DbConn(SqliteConnection);
+
+embed_migrations!();
+fn run_db_migrations(rocket: Rocket) -> Result<Rocket, Rocket> {
+    let conn = DbConn::get_one(&rocket).expect("database connection");
+    let result = match embedded_migrations::run(&*conn) {
+        Ok(()) => Ok(rocket),
+        Err(e) => {
+            println!("Failed to run database migrations: {:?}", e);
+            Err(rocket)
+        }
+    };
+    use events::schema::locations;
+    use events::SqlLocation;
+    let loc = SqlLocation {
+        id: None,
+        name: "Db Test".to_string(),
+        address: "Sqlite".to_string(),
+    };
+    diesel::insert_into(locations::table)
+        .values(&loc)
+        .execute(&conn.0)
+        .expect("Error saving dummy location.");
+    result
+}
+
 type Store = RwLock<events::Store>;
 
 fn main() {
@@ -285,6 +337,8 @@ fn main() {
     });
 
     rocket::ignite()
+        .attach(DbConn::fairing())
+        .attach(AdHoc::on_attach("Database Migrations", run_db_migrations))
         .manage(RwLock::new(events::Store::from(locations, events)))
         .mount(
             "/static",
@@ -304,7 +358,8 @@ fn main() {
                 update_location,
                 delete_location,
                 admin_route,
-                admin_subroute
+                admin_subroute,
+                dummy_loc,
             ],
         )
         .launch();

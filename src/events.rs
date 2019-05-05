@@ -1,9 +1,38 @@
 use std::collections::{BTreeMap, HashMap};
 
 use chrono::prelude::*;
+use diesel::{self, prelude::*};
 use serde::{Deserialize, Serialize};
 
 use super::id_map::{Id, IdMap, UnsafeId};
+
+pub mod schema {
+    table! {
+        events {
+            id -> Nullable<Integer>,
+            name -> Text,
+            teaser -> Text,
+            description -> Text,
+        }
+    }
+    table! {
+        occurrences {
+            id -> Nullable<Integer>,
+            start -> Timestamp,
+            event_id -> Integer,
+            location_id -> Integer,
+        }
+    }
+    table! {
+        locations {
+            id -> Nullable<Integer>,
+            name -> Text,
+            address -> Text,
+        }
+    }
+}
+
+use schema::*;
 
 // Types
 
@@ -26,6 +55,14 @@ type Duration = u64;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Location {
+    pub name: String,
+    pub address: String,
+}
+
+#[derive(Queryable, Insertable)]
+#[table_name = "locations"]
+pub struct SqlLocation {
+    pub id: Option<i32>,
     pub name: String,
     pub address: String,
 }

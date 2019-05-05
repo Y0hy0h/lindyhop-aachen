@@ -1,6 +1,7 @@
 node_modules/
 
 static/
+db/
 
 target/
 **/*.rs.bk
