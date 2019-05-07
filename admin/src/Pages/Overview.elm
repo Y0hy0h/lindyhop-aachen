@@ -48,7 +48,7 @@ updateLoad msg model =
             Result.map Model result
 
 
-view : Model -> List (Html msg) 
+view : Model -> List (Html msg)
 view model =
     [ h1 [] [ text "Admin" ]
     , h2 [] [ text "Veranstaltungen" ]
