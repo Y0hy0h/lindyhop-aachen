@@ -58,7 +58,7 @@ type alias Model =
 
 
 type alias EventInput =
-    { name : In String
+    { title : In String
     , teaser : In String
     , description : In String
     , occurrences : List OccurrenceInput
@@ -79,7 +79,7 @@ eventFromInputs locs inputs =
             Maybe.combine (List.map (occurrenceFromInput locs) inputs.occurrences)
     in
     Maybe.map4 Event
-        (extract inputs.name)
+        (extract inputs.title)
         (extract inputs.teaser)
         (extract inputs.description)
         maybeOccurrences
@@ -104,7 +104,7 @@ inputsFromEvent locations event =
             , locationId = inputLocationId locations occurrence.locationId
             }
     in
-    { name = inputString event.name
+    { title = inputString event.title
     , teaser = inputString event.teaser
     , description = inputString event.description
     , occurrences = List.map inputFromOccurrence event.occurrences
@@ -273,7 +273,7 @@ updateInputs locations msg event =
     in
     case msg of
         InputName newName ->
-            { event | name = setInput newName event.name }
+            { event | title = setInput newName event.title }
 
         InputTeaser newTeaser ->
             { event | teaser = setInput newTeaser event.teaser }
@@ -386,7 +386,7 @@ view model =
 viewEditEvent : Locations -> EventInput -> List (Html InputMsg)
 viewEditEvent locations inputs =
     [ fields
-        [ viewInputText "Titel" inputs.name InputName
+        [ viewInputText "Titel" inputs.title InputName
         , viewInputText "Teaser" inputs.teaser InputTeaser
         , viewTextArea "Beschreibung" inputs.description InputDescription
         ]

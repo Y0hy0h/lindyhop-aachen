@@ -26,25 +26,18 @@ fn index(store: State<Store>) -> Markup {
 
     html! {
         ( DOCTYPE )
-        html {
+        html lang="de" {
             head {
                 link href="static/main.css" rel="stylesheet";
             }
             body {
-                h1 { "Lindy Hop Aachen" }
-                table {
-                    thead {
-                        tr {
-                            th { "Datum" }
-                            th { "Name" }
-                            th { "Uhrzeit" }
-                            th { "Ort" }
-                            th { "Beschreibung" }
-                        }
-                    }
-                    tbody {
+                header {
+                    h1 { "Lindy Hop Aachen" }
+                }
+                main {
+                    ol.schedule {
                         @for entry in store.occurrences_by_date() {
-                            ( render_entry(&entry, &store.locations) )
+                            li { ( render_entry(&entry, &store.locations) ) }
                         }
                     }
                 }
@@ -58,33 +51,52 @@ fn render_entry(
     locations: &Locations,
 ) -> Markup {
     html! {
-        @let (first, remaining) = entries.split_first().unwrap();  // Since we have a date, there is at least one entry with that date.
-        tr {
-            td rowspan=( entries.len() ) { ( date.format("%d.%m.") ) }
-            ( render_occurrence(first, locations) )
-        }
-        @for occurrence_entry in remaining {
-            tr {
-                ( render_occurrence(occurrence_entry, locations) )
+        div.date { ( format_date(date) ) }
+        ol.events {
+            @for occurrence_entry in entries {
+                li.event { ( render_occurrence(occurrence_entry, locations) ) }
             }
         }
     }
 }
 
+fn format_date(date: &NaiveDate) -> String {
+    use chrono::Weekday::*;
+
+    let day = match date.weekday() {
+        Mon => "Mo",
+        Tue => "Di",
+        Wed => "Mi",
+        Thu => "Do",
+        Fri => "Fr",
+        Sat => "Sa",
+        Sun => "So",
+    };
+    let format = format!("{}, %d.%m.", day);
+
+    date.format(&format).to_string()
+}
+
 fn render_occurrence((occurrence, event): &(&Occurrence, &Event), locations: &Locations) -> Markup {
     html! {
         @let entry =  html_from_occurrence(occurrence, event, locations);
-        td { ( entry.name ) }
-        td { ( entry.time ) }
-        td { ( entry.location ) }
-        td { ( entry.teaser ) }
+        h2.title { ( entry.title )}
+        div.content {
+            ul.quick-info {
+                li.time { ( entry.time ) }
+                li.location { ( entry.location ) }
+            }
+            div.description {
+                div.teaser { ( entry.teaser ) }
+            }
+        }
     }
 }
 
 struct OccurrenceHtml {
     time: Markup,
     location: Markup,
-    name: Markup,
+    title: Markup,
     teaser: Markup,
 }
 
@@ -98,13 +110,13 @@ fn html_from_occurrence(
         .map(|id| locations.get(&id));
 
     OccurrenceHtml {
-        time: html! {(occurrence.start.format("%H:%M"))},
+        time: html! {(occurrence.start.format("%H:%M")) small { " bis " (occurrence.end().format("%H:%M"))} },
         location: html! { @match maybe_location {
                 Some(location) => (location.name),
                 None => "Steht noch nicht fest."
                 }
         },
-        name: html! { (event.name) },
+        title: html! { (event.title) },
         teaser: html! { (event.teaser) },
     }
 }
@@ -249,12 +261,22 @@ fn main() {
 
     let mut events = Events::new();
     events.insert(Event {
-        name: "Social Dance".to_string(),
+        title: "Social Dance".to_string(),
         teaser: "Einfach tanzen.".to_string(),
         description: "Lindy Hop tanzen in einer Bar.".to_string(),
         occurrences: vec![
             Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 1).and_hms(20, 30, 00),
+                start: NaiveDate::from_ymd(2019, 4, 2).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 4, 3).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 4, 4).and_hms(20, 30, 00),
                 duration: 90,
                 location_id: chico_id.to_unsafe(),
             },
@@ -263,23 +285,83 @@ fn main() {
                 duration: 90,
                 location_id: sencillito_id.to_unsafe(),
             },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 4, 15).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 4, 16).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 4, 21).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 5, 10).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 5, 15).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 5, 20).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
         ],
     });
     events.insert(Event {
-        name: "Anfängerkurs".to_string(),
+        title: "Anfängerkurs".to_string(),
         teaser: "Hereinschnuppern.".to_string(),
         description: "Ein Einführung für diejenigen, die noch nie Lindy Hop getanzt haben."
             .to_string(),
         occurrences: vec![
             Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 1).and_hms(19, 45, 00),
-                duration: 45,
+                start: NaiveDate::from_ymd(2019, 4, 2).and_hms(20, 30, 00),
+                duration: 90,
                 location_id: chico_id.to_unsafe(),
             },
             Occurrence {
                 start: NaiveDate::from_ymd(2019, 4, 8).and_hms(20, 30, 00),
                 duration: 90,
                 location_id: sencillito_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 4, 15).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 4, 16).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 4, 21).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 5, 10).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 5, 15).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
+            },
+            Occurrence {
+                start: NaiveDate::from_ymd(2019, 5, 20).and_hms(20, 30, 00),
+                duration: 90,
+                location_id: chico_id.to_unsafe(),
             },
         ],
     });
