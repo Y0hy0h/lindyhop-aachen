@@ -17,7 +17,7 @@ use maud::{html, Markup, DOCTYPE};
 use rocket::response::NamedFile;
 use rocket_contrib::serve::StaticFiles;
 
-use store::{Store};
+use store::Store;
 
 #[get("/")]
 fn index(store: Store) -> Markup {
@@ -30,7 +30,7 @@ fn index(store: Store) -> Markup {
             body {
                 h1 { "Lindy Hop Aachen" }
                 ul {
-                    @for location in store.read_all() {
+                    @for (_, location) in store.read_all() {
                         li { ( location.name ) }
                     }
                 }
@@ -61,13 +61,6 @@ fn main() {
             "/static",
             StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")),
         )
-        .mount(
-            "/",
-            routes![
-                index,
-                admin_route,
-                admin_subroute,
-            ],
-        )
+        .mount("/", routes![index, admin_route, admin_subroute,])
         .launch();
 }
