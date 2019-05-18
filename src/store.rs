@@ -17,13 +17,12 @@ pub struct Event {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Occurrence {
-    pub event_id: Id,
     pub start: NaiveDateTime,
     pub duration: Duration,
     pub location_id: Id,
 }
 
-type Duration = u64;
+type Duration = u32;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Location {
@@ -37,20 +36,46 @@ type Id = i32;
 
 pub struct Store(db::Connection);
 
-use db::SqlLocation;
+use db::{SqlEvent, SqlLocation, SqlOccurrence};
 impl Store {
     pub fn fairing() -> StoreFairing {
         StoreFairing
     }
 
-    pub fn read_all(&self) -> Vec<(Id, Location)> {
-        use db::schema::locations::dsl::*;
-        locations
+    pub fn read_all(&self) -> (Vec<(Id, Location)>, Vec<(Id, Event, Vec<Occurrence>)>) {
+        use db::schema::locations::dsl::locations;
+        let locs: Vec<(Id, Location)> = locations
             .load::<SqlLocation>(&*self.0)
             .expect("Loading from database failed.")
             .into_iter()
-            .map(|loc| loc.into())
-            .collect()
+            .map(|location| location.into())
+            .collect();
+
+        use db::schema::events::dsl::events;
+        let evts: Vec<(Id, Event, Vec<Occurrence>)> = events
+            .load::<SqlEvent>(&*self.0)
+            .expect("Loading from database failed.")
+            .into_iter()
+            .map(|sql_event| {
+                let (id, event) = sql_event.into();
+
+                use db::schema::occurrences::dsl::occurrences;
+                let occrs: Vec<Occurrence> = occurrences
+                    .load::<SqlOccurrence>(&*self.0)
+                    .expect("Loading from database failed.")
+                    .into_iter()
+                    .map(|sql_occurrence| {
+                        let (_, occurrence) = sql_occurrence.into();
+
+                        occurrence
+                    })
+                    .collect();
+
+                (id, event, occrs)
+            })
+            .collect();
+
+        (locs, evts)
     }
 }
 
@@ -130,20 +155,65 @@ mod db {
     use schema::*;
 
     #[derive(Queryable, Insertable)]
+    #[table_name = "events"]
+    pub struct SqlEvent {
+        pub id: Id,
+        pub name: String,
+        pub teaser: String,
+        pub description: String,
+    }
+
+    impl From<SqlEvent> for (Id, Event) {
+        fn from(event: SqlEvent) -> (Id, Event) {
+            (
+                event.id,
+                Event {
+                    name: event.name,
+                    teaser: event.teaser,
+                    description: event.description,
+                },
+            )
+        }
+    }
+
+    #[derive(Queryable, Insertable)]
+    #[table_name = "occurrences"]
+    pub struct SqlOccurrence {
+        pub id: Id,
+        pub event_id: Id,
+        pub start: NaiveDateTime,
+        pub duration: i32,
+        pub location_id: Id,
+    }
+
+    impl From<SqlOccurrence> for (Id, Occurrence) {
+        fn from(occurrence: SqlOccurrence) -> (Id, Occurrence) {
+            (
+                occurrence.id,
+                Occurrence {
+                    start: occurrence.start,
+                    duration: occurrence.duration as u32,
+                    location_id: occurrence.location_id,
+                },
+            )
+        }
+    }
+
+    #[derive(Queryable, Insertable)]
     #[table_name = "locations"]
     pub struct SqlLocation {
-        pub id: i32,
+        pub id: Id,
         pub name: String,
         pub address: String,
     }
 
     impl From<SqlLocation> for (Id, Location) {
-        fn from(loc: SqlLocation) -> (Id, Location) {
+        fn from(location: SqlLocation) -> (Id, Location) {
             (
-                loc.id,
+                location.id,
                 Location {
-                    name: loc.name,
-                    address: loc.address,
+                    name: location.name,
+                    address: location.address,
                 },
             )
         }

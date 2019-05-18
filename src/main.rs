@@ -3,8 +3,6 @@
 mod id_map;
 mod store;
 
-use std::path::{Path, PathBuf};
-
 #[macro_use]
 extern crate rocket;
 #[macro_use]
@@ -13,9 +11,13 @@ extern crate rocket_contrib;
 extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
+
+use std::path::{Path, PathBuf};
+
 use maud::{html, Markup, DOCTYPE};
 use rocket::response::NamedFile;
 use rocket_contrib::serve::StaticFiles;
+use chrono::prelude::*;
 
 use store::Store;
 
@@ -29,14 +31,44 @@ fn index(store: Store) -> Markup {
             }
             body {
                 h1 { "Lindy Hop Aachen" }
+                @let (locations, events) = store.read_all();
                 ul {
-                    @for (_, location) in store.read_all() {
+                    @for (_, event, occurrences) in events {
+                        li {
+                            (event.name)
+                            ul {
+                                @for occurrence in occurrences {
+                                    li { (format_date(&occurrence.start.date())) }
+                                }
+                            }
+                        }
+                    }
+                }
+                ul {
+                    @for (_, location) in locations {
                         li { ( location.name ) }
                     }
                 }
             }
         }
     }
+}
+
+fn format_date(date: &NaiveDate) -> String {
+    use chrono::Weekday::*;
+
+    let day = match date.weekday() {
+        Mon => "Mo",
+        Tue => "Di",
+        Wed => "Mi",
+        Thu => "Do",
+        Fri => "Fr",
+        Sat => "Sa",
+        Sun => "So",
+    };
+    let format = format!("{}, %d.%m.", day);
+
+    date.format(&format).to_string()
 }
 
 #[get("/admin")]
