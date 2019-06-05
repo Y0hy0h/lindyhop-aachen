@@ -1,6 +1,7 @@
 mod db;
 #[macro_use]
 pub mod action;
+pub mod routes;
 
 use uuid::Uuid;
 use chrono::NaiveDateTime;

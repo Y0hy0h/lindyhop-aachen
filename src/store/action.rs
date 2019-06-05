@@ -12,6 +12,11 @@ pub trait Actions<T> {
 
 macro_rules! derive_actions {
     ($t: ident, $s: ident) => {
+        /*impl Action$t {
+            pub fn execute(&self) -> QueryResult<Id> {
+            }
+        }*/
+
         impl Actions<$t> for Store {
             type Id = Id;
 

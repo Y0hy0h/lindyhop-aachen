@@ -1,6 +1,6 @@
 use std::result;
-use rocket_contrib::uuid;
-use diesel;
+//use rocket_contrib::uuid;
+//use diesel;
 
 pub type Result<T> = result::Result<T, Error>;
 
