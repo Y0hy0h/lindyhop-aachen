@@ -69,8 +69,7 @@ impl Store {
     }
 
     pub fn read_all(&self) -> (Vec<(Id, Location)>, Vec<(Id, Event, Vec<Occurrence>)>) {
-        //let locs: Vec<(Id, Location)> = self.all();
-        let locs = self.all();
+        let locs: Vec<(Id, Location)> = self.all();
 
         use db::schema::events::dsl::events;
         let evts: Vec<(Id, Event, Vec<Occurrence>)> = events
