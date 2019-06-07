@@ -1,15 +1,8 @@
 use rocket::Route;
 use rocket_contrib::{json::Json, uuid::Uuid};
-
 use crate::store::{action::Actions, Event, Location, Occurrence, Store};
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Responder, Debug)]
-pub enum Error {
-    ParseId(String),
-    Database(String),
-}
+type Result<T> = std::result::Result<T, String>;
 
 macro_rules! derive_routes {
     ($mod: ident, $type: ident) => {
@@ -25,7 +18,7 @@ macro_rules! derive_routes {
             fn store(store: Store, obj: Json<$type>) -> Result<String> {
                 store
                     .create(obj.0)
-                    .map_err(|x| Error::Database(x.to_string()))
+                    .map_err(|err| err.to_string())
                     .map(|x| x.to_string())
             }
 
@@ -33,21 +26,21 @@ macro_rules! derive_routes {
             fn update(store: Store, id: Uuid, obj: Json<$type>) -> Result<Json<$type>> {
                 store
                     .update(id.into_inner(), obj.0)
-                    .map_err(|x| Error::Database(x.to_string()))
+                    .map_err(|err| err.to_string())
                     .map(|x| Json(x))
             }
 
             #[get("/<id>")]
             fn get(store: Store, id: Uuid) -> Result<Json<$type>> {
                 store.read(id.into_inner())
-                    .map_err(|x| Error::Database(x.to_string()))
+                    .map_err(|err| err.to_string())
                     .map(|x| Json(x))
             }
 
             #[get("/<id>/delete")]
             fn delete(store: Store, id: Uuid) -> Result<Json<$type>> {
                 store.delete(id.into_inner())
-                    .map_err(|x| Error::Database(x.to_string()))
+                    .map_err(|err| err.to_string())
                     .map(|x| Json(x))
             }
 
