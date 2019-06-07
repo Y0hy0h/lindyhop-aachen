@@ -84,8 +84,8 @@ fn main() {
             StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")),
         )
         .mount("/", routes![index, admin])
-        .mount("/admin/events/", event::routes())
-        .mount("/admin/occurrences/", occurrence::routes())
-        .mount("/admin/locations/", location::routes())
+        .mount("/api/events/", event::routes())
+        .mount("/api/occurrences/", occurrence::routes())
+        .mount("/api/locations/", location::routes())
         .launch();
 }
