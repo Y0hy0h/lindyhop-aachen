@@ -1,6 +1,5 @@
 #![feature(proc_macro_hygiene, decl_macro, custom_attribute)]
 
-mod id_map;
 mod store;
 
 #[macro_use]
