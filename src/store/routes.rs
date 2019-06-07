@@ -1,7 +1,7 @@
 use rocket::Route;
-use rocket_contrib::json::Json;
+use rocket_contrib::{json::Json, uuid::Uuid};
 
-use crate::store::{action::Actions, Event, Id, Location, Occurrence, Store};
+use crate::store::{action::Actions, Event, Location, Occurrence, Store};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -30,30 +30,24 @@ macro_rules! derive_routes {
             }
 
             #[post("/<id>", data = "<obj>")]
-            fn update(store: Store, id: String, obj: Json<$type>) -> Result<Json<$type>> {
-                Id::parse_str(&id)
-                    .map_err(|x| Error::ParseId(x.to_string()))
-                    .and_then(|x| {
-                        store
-                            .update(x, obj.0)
-                            .map_err(|x| Error::Database(x.to_string()))
-                    })
+            fn update(store: Store, id: Uuid, obj: Json<$type>) -> Result<Json<$type>> {
+                store
+                    .update(id.into_inner(), obj.0)
+                    .map_err(|x| Error::Database(x.to_string()))
                     .map(|x| Json(x))
             }
 
             #[get("/<id>")]
-            fn get(store: Store, id: String) -> Result<Json<$type>> {
-                Id::parse_str(&id)
-                    .map_err(|x| Error::ParseId(x.to_string()))
-                    .and_then(|x| store.read(x).map_err(|x| Error::Database(x.to_string())))
+            fn get(store: Store, id: Uuid) -> Result<Json<$type>> {
+                store.read(id.into_inner())
+                    .map_err(|x| Error::Database(x.to_string()))
                     .map(|x| Json(x))
             }
 
             #[get("/<id>/delete")]
-            fn delete(store: Store, id: String) -> Result<Json<$type>> {
-                Id::parse_str(&id)
-                    .map_err(|x| Error::ParseId(x.to_string()))
-                    .and_then(|x| store.delete(x).map_err(|x| Error::Database(x.to_string())))
+            fn delete(store: Store, id: Uuid) -> Result<Json<$type>> {
+                store.delete(id.into_inner())
+                    .map_err(|x| Error::Database(x.to_string()))
                     .map(|x| Json(x))
             }
 
