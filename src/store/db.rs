@@ -19,9 +19,20 @@ pub fn initialize(rocket: Rocket) -> Result<Rocket, Rocket> {
 
     let store = Store(conn);
 
-    store.create(Location { name: "Test".to_string(), address: "Somewhere".to_string()}).expect("Could not create entry!");
-    
-    let event = store.create(Event { name: "Social Dance".into(), teaser: "Blub".into(), description: "kakak".into() }).expect("Could not create event entry!");
+    store
+        .create(Location {
+            name: "Test".to_string(),
+            address: "Somewhere".to_string(),
+        })
+        .expect("Could not create entry!");
+
+    let event = store
+        .create(Event {
+            name: "Social Dance".into(),
+            teaser: "Blub".into(),
+            description: "kakak".into(),
+        })
+        .expect("Could not create event entry!");
 
     println!("{:?}", event);
 
@@ -142,7 +153,7 @@ impl From<Event> for SqlEvent {
             id: SqlId(id),
             name: event.name,
             teaser: event.teaser,
-            description: event.description
+            description: event.description,
         }
     }
 }
@@ -165,7 +176,7 @@ impl From<SqlOccurrence> for (Id, Occurrence) {
                 start: occurrence.start,
                 end: occurrence.end,
                 location_id: occurrence.location_id.into(),
-                event_id: occurrence.event_id.into()
+                event_id: occurrence.event_id.into(),
             },
         )
     }
@@ -180,7 +191,7 @@ impl From<Occurrence> for SqlOccurrence {
             start: occurrence.start,
             end: occurrence.end,
             location_id: occurrence.location_id.into(),
-            event_id: occurrence.event_id.into()
+            event_id: occurrence.event_id.into(),
         }
     }
 }
@@ -214,5 +225,3 @@ impl From<SqlLocation> for (Id, Location) {
         )
     }
 }
-
-

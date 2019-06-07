@@ -41,9 +41,7 @@ macro_rules! derive_actions {
             fn read(&self, item_id: Self::Id) -> QueryResult<$t> {
                 use super::db::SqlId;
 
-                let sql_items = schema
-                    .find(SqlId::from(item_id))
-                    .first::<$s>(&*self.0)?;
+                let sql_items = schema.find(SqlId::from(item_id)).first::<$s>(&*self.0)?;
 
                 let (_, item) = sql_items.into();
                 Ok(item)
@@ -53,10 +51,7 @@ macro_rules! derive_actions {
                 use super::db::SqlId;
 
                 let raw_id: SqlId = item_id.into();
-                let (_, previous): (Id, $t) = schema
-                    .find(&raw_id)
-                    .first::<$s>(&*self.0)?
-                    .into();
+                let (_, previous): (Id, $t) = schema.find(&raw_id).first::<$s>(&*self.0)?.into();
 
                 diesel::update(schema.find(&raw_id))
                     .set::<$s>(new_item.into())
@@ -69,16 +64,12 @@ macro_rules! derive_actions {
                 use super::db::SqlId;
 
                 let raw_id: SqlId = id.into();
-                let (_, previous): (Id, $t) = schema
-                    .find(&raw_id)
-                    .first::<$s>(&*self.0)?
-                    .into();
+                let (_, previous): (Id, $t) = schema.find(&raw_id).first::<$s>(&*self.0)?.into();
 
-                diesel::delete(schema.find(&raw_id))
-                    .execute(&*self.0)?;
+                diesel::delete(schema.find(&raw_id)).execute(&*self.0)?;
 
                 Ok(previous)
             }
         }
-    }
+    };
 }

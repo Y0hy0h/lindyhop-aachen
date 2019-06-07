@@ -1,7 +1,6 @@
 #![feature(proc_macro_hygiene, decl_macro, custom_attribute)]
 
 mod id_map;
-mod error;
 mod store;
 
 #[macro_use]
@@ -13,15 +12,15 @@ extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
 
-use std::path::Path;
 use rocket::response::NamedFile;
+use std::path::Path;
 
+use chrono::prelude::*;
 use maud::{html, Markup, DOCTYPE};
 use rocket_contrib::serve::StaticFiles;
-use chrono::prelude::*;
 
-use store::Store;
 use store::routes::*;
+use store::Store;
 
 #[get("/")]
 fn index(store: Store) -> Markup {

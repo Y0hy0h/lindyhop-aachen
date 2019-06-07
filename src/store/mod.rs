@@ -3,14 +3,14 @@ mod db;
 pub mod action;
 pub mod routes;
 
-use uuid::Uuid;
 use chrono::NaiveDateTime;
+use rocket::request::{FromRequest, Outcome, Request};
 use rocket::{fairing, fairing::Fairing, Rocket};
-use rocket::request::{FromRequest, Outcome, Request, };
+use uuid::Uuid;
 
-use diesel::{self, prelude::*};
-use diesel::result::QueryResult;
 use db::{SqlEvent, SqlLocation, SqlOccurrence};
+use diesel::result::QueryResult;
+use diesel::{self, prelude::*};
 use serde::{Deserialize, Serialize};
 
 use action::Actions;
@@ -27,7 +27,7 @@ pub struct Occurrence {
     pub start: NaiveDateTime,
     pub end: NaiveDateTime,
     pub event_id: Id,
-    pub location_id: Id
+    pub location_id: Id,
 }
 
 type Duration = u32;
@@ -35,25 +35,25 @@ type Duration = u32;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Location {
     pub name: String,
-    pub address: String
+    pub address: String,
 }
 
 mod location_action {
-    use super::db::schema::locations::{table, dsl::locations as schema};
+    use super::db::schema::locations::{dsl::locations as schema, table};
     use super::*;
 
     derive_actions!(Location, SqlLocation);
 }
 
 mod event_actions {
-    use super::db::schema::events::{table, dsl::events as schema};
+    use super::db::schema::events::{dsl::events as schema, table};
     use super::*;
 
     derive_actions!(Event, SqlEvent);
 }
 
 mod occurrence_actions {
-    use super::db::schema::occurrences::{table, dsl::occurrences as schema};
+    use super::db::schema::occurrences::{dsl::occurrences as schema, table};
     use super::*;
 
     derive_actions!(Occurrence, SqlOccurrence);
@@ -66,7 +66,7 @@ pub struct Store(db::Connection);
 impl Store {
     pub fn fairing() -> StoreFairing {
         StoreFairing
-    }   
+    }
 
     pub fn read_all(&self) -> (Vec<(Id, Location)>, Vec<(Id, Event, Vec<Occurrence>)>) {
         //let locs: Vec<(Id, Location)> = self.all();
@@ -89,17 +89,16 @@ impl Store {
                         let (_, occurrence) = sql_occurrence.into();
 
                         occurrence
-                    })  
+                    })
                     .collect();
 
                 (id, event, occrs)
-            })  
+            })
             .collect();
 
         (locs, evts)
-    }   
+    }
 }
-
 
 pub struct StoreFairing;
 
@@ -127,4 +126,3 @@ impl<'a, 'r> FromRequest<'a, 'r> for Store {
         db::Connection::from_request(request).map(Store)
     }
 }
-
