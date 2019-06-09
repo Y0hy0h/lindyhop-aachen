@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+use std::iter::FromIterator;
+
+use crate::store::{action::Actions, Event, Id, Location, Occurrence, Store};
+
 use rocket::Route;
 use rocket_contrib::{json::Json, uuid::Uuid};
-use crate::store::{action::Actions, Event, Location, Occurrence, Store};
 
 type Result<T> = std::result::Result<T, String>;
 
@@ -10,19 +14,24 @@ macro_rules! derive_routes {
             use super::*;
 
             #[get("/")]
-            fn all(store: Store) -> Json<Vec<$type>> {
-                Json(store.all().into_iter().map(|x| x.1).collect())
+            fn all(store: Store) -> Json<HashMap<Id, $type>> {
+                Json(HashMap::from_iter(store.all()))
             }
 
             #[post("/", data = "<obj>")]
-            fn store(store: Store, obj: Json<$type>) -> Result<String> {
-                store
-                    .create(obj.0)
-                    .map_err(|err| err.to_string())
-                    .map(|x| x.to_string())
+            fn create(store: Store, obj: Json<$type>) -> Result<Json<Id>> {
+                store.create(obj.0).map_err(|err| err.to_string()).map(Json)
             }
 
-            #[post("/<id>", data = "<obj>")]
+            #[get("/<id>")]
+            fn read(store: Store, id: Uuid) -> Result<Json<$type>> {
+                store
+                    .read(id.into_inner())
+                    .map_err(|err| err.to_string())
+                    .map(|x| Json(x))
+            }
+
+            #[put("/<id>", data = "<obj>")]
             fn update(store: Store, id: Uuid, obj: Json<$type>) -> Result<Json<$type>> {
                 store
                     .update(id.into_inner(), obj.0)
@@ -30,22 +39,16 @@ macro_rules! derive_routes {
                     .map(|x| Json(x))
             }
 
-            #[get("/<id>")]
-            fn get(store: Store, id: Uuid) -> Result<Json<$type>> {
-                store.read(id.into_inner())
-                    .map_err(|err| err.to_string())
-                    .map(|x| Json(x))
-            }
-
-            #[get("/<id>/delete")]
+            #[delete("/<id>")]
             fn delete(store: Store, id: Uuid) -> Result<Json<$type>> {
-                store.delete(id.into_inner())
+                store
+                    .delete(id.into_inner())
                     .map_err(|err| err.to_string())
                     .map(|x| Json(x))
             }
 
             pub fn routes() -> Vec<Route> {
-                routes![all, store, update, get, delete]
+                routes![all, create, read, update, delete]
             }
         }
     };
