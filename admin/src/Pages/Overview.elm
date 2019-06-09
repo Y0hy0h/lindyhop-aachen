@@ -32,7 +32,7 @@ init : ( LoadModel, Cmd LoadMsg )
 init =
     let
         fetchEvents =
-            Events.fetchEvents FetchedEvents
+            Events.fetchStore FetchedEvents
     in
     ( LoadModel, fetchEvents )
 

@@ -62,7 +62,7 @@ init : Browser.Key -> ( LoadModel, Cmd LoadMsg )
 init key =
     let
         fetchEvents =
-            Events.fetchEvents FetchedEvents
+            Events.fetchStore FetchedEvents
     in
     ( LoadModel key, fetchEvents )
 

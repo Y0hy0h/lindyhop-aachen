@@ -1,7 +1,8 @@
 module Events exposing
     ( Event, Occurrence, Location, Store, Events, Locations
-    , fetchEvents, createEvent, readEvent, updateEvent, deleteEvent, createLocation, readLocation, updateLocation, deleteLocation
+    , createEvent, readEvent, updateEvent, deleteEvent, createLocation, readLocation, updateLocation, deleteLocation
     , locations, events, mapEvents, mapLocations
+    , fetchStore
     )
 
 {-| Fetches, stores, and makes accessible the events from the backend.
@@ -160,13 +161,13 @@ apiRequest { method, url, body, expect } =
 
 {-| The HTTP command to fetch the events.
 -}
-fetchEvents : (Result Http.Error Store -> msg) -> Cmd msg
-fetchEvents toMsg =
+fetchStore : (Result Http.Error Store -> msg) -> Cmd msg
+fetchStore toMsg =
     apiRequest
         { method = Get
-        , url = [ "events" ]
+        , url = [ "" ]
         , body = Nothing
-        , expect = Http.expectJson toMsg decodeEvents
+        , expect = Http.expectJson toMsg decodeStore
         }
 
 
@@ -254,8 +255,8 @@ deleteLocation id toMsg =
 -- Decode
 
 
-decodeEvents : Decode.Decoder Store
-decodeEvents =
+decodeStore : Decode.Decoder Store
+decodeStore =
     let
         defaultLocation =
             Location "" ""
@@ -274,12 +275,28 @@ decodeEvents =
 
 decodeEvent : IdDict Location -> Decode.Decoder Event
 decodeEvent locs =
-    Decode.map4
-        Event
-        (Decode.field "name" Decode.string)
-        (Decode.field "teaser" Decode.string)
-        (Decode.field "description" Decode.string)
-        (Decode.field "occurrences" (Decode.list (decodeOccurrence locs)))
+    Decode.map2
+        (\eventData occurrences ->
+            { name = eventData.name
+            , teaser = eventData.teaser
+            , description = eventData.description
+            , occurrences = occurrences
+            }
+        )
+        (Decode.index 0
+            (Decode.map3
+                (\name teaser description ->
+                    { name = name
+                    , teaser = teaser
+                    , description = description
+                    }
+                )
+                (Decode.field "name" Decode.string)
+                (Decode.field "teaser" Decode.string)
+                (Decode.field "description" Decode.string)
+            )
+        )
+        (Decode.index 1 (Decode.list (decodeOccurrence locs)))
 
 
 decodeOccurrence : IdDict Location -> Decode.Decoder Occurrence
