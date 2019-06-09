@@ -12,7 +12,7 @@ extern crate diesel;
 extern crate diesel_migrations;
 
 use rocket::response::NamedFile;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use chrono::prelude::*;
 use maud::{html, Markup, DOCTYPE};
@@ -71,8 +71,21 @@ fn format_date(date: &NaiveDate) -> String {
     date.format(&format).to_string()
 }
 
+
 #[get("/admin")]
-pub fn admin() -> Option<NamedFile> {
+fn admin_route() -> Option<NamedFile> {
+    admin()
+}
+
+// We also want to serve the file when subroutes are called, e. g. `/admin/event/42`.
+// Removing this would break reloading the admin on subroutes.
+#[get("/admin/<path..>")]
+#[allow(unused_variables)]
+fn admin_subroute(path: PathBuf) -> Option<NamedFile> {
+    admin()
+}
+
+fn admin() -> Option<NamedFile> {
     NamedFile::open(Path::new("admin/dist/index.html")).ok()
 }
 
@@ -83,7 +96,7 @@ fn main() {
             "/static",
             StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")),
         )
-        .mount("/", routes![index, admin])
+        .mount("/", routes![index, admin_route, admin_subroute])
         .mount("/api/events/", event::routes())
         .mount("/api/occurrences/", occurrence::routes())
         .mount("/api/locations/", location::routes())
