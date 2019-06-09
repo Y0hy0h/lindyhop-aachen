@@ -25,7 +25,7 @@ pub struct Event {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Occurrence {
     pub start: NaiveDateTime,
-    pub end: NaiveDateTime,
+    pub duration: Duration,
     pub event_id: Id,
     pub location_id: Id,
 }

@@ -53,7 +53,7 @@ pub mod schema {
             id -> Binary,
             event_id -> Binary,
             start -> Timestamp,
-            end -> Timestamp,
+            duration -> Integer,
             location_id -> Binary,
         }
     }
@@ -164,7 +164,7 @@ pub struct SqlOccurrence {
     pub id: SqlId,
     pub event_id: SqlId,
     pub start: NaiveDateTime,
-    pub end: NaiveDateTime,
+    pub duration: i32,
     pub location_id: SqlId,
 }
 
@@ -174,7 +174,7 @@ impl From<SqlOccurrence> for (Id, Occurrence) {
             occurrence.id.0,
             Occurrence {
                 start: occurrence.start,
-                end: occurrence.end,
+                duration: occurrence.duration as u32,
                 location_id: occurrence.location_id.into(),
                 event_id: occurrence.event_id.into(),
             },
@@ -189,7 +189,7 @@ impl From<Occurrence> for SqlOccurrence {
         SqlOccurrence {
             id: SqlId(id),
             start: occurrence.start,
-            end: occurrence.end,
+            duration: occurrence.duration as i32,
             location_id: occurrence.location_id.into(),
             event_id: occurrence.event_id.into(),
         }
