@@ -12,11 +12,6 @@ pub trait Actions<T> {
 
 macro_rules! derive_actions {
     ($t: ident, $s: ident) => {
-        /*impl Action$t {
-            pub fn execute(&self) -> QueryResult<Id> {
-            }
-        }*/
-
         impl Actions<$t> for Store {
             type Id = Id;
 
@@ -41,10 +36,7 @@ macro_rules! derive_actions {
             fn read(&self, item_id: Self::Id) -> QueryResult<$t> {
                 use super::db::SqlId;
 
-                let sql_items = schema.find(SqlId::from(item_id)).first::<$s>(&*self.0)?;
-
-                let (_, item) = sql_items.into();
-                Ok(item)
+                schema.find(SqlId::from(item_id)).first::<$s>(&*self.0).map(|x| x.into()).map(|(_,x)| x)
             }
 
             fn update(&self, item_id: Self::Id, new_item: $t) -> QueryResult<$t> {
