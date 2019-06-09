@@ -20,7 +20,10 @@ macro_rules! derive_routes {
 
             #[post("/", data = "<obj>")]
             fn create(store: Store, obj: Json<$type>) -> Result<Json<Id>> {
-                store.create(obj.0).map_err(|err| err.to_string()).map(Json)
+                store
+                    .create(obj.0)
+                    .map_err(|err| err.to_string())
+                    .map(Json)
             }
 
             #[get("/<id>")]
@@ -28,7 +31,7 @@ macro_rules! derive_routes {
                 store
                     .read(id.into_inner())
                     .map_err(|err| err.to_string())
-                    .map(|x| Json(x))
+                    .map(Json)
             }
 
             #[put("/<id>", data = "<obj>")]
@@ -36,7 +39,7 @@ macro_rules! derive_routes {
                 store
                     .update(id.into_inner(), obj.0)
                     .map_err(|err| err.to_string())
-                    .map(|x| Json(x))
+                    .map(Json)
             }
 
             #[delete("/<id>")]
@@ -44,7 +47,7 @@ macro_rules! derive_routes {
                 store
                     .delete(id.into_inner())
                     .map_err(|err| err.to_string())
-                    .map(|x| Json(x))
+                    .map(Json)
             }
 
             pub fn routes() -> Vec<Route> {

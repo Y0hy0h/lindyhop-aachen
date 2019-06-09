@@ -26,15 +26,13 @@ pub fn initialize(rocket: Rocket) -> Result<Rocket, Rocket> {
         })
         .expect("Could not create entry!");
 
-    let event = store
+    store
         .create(Event {
             name: "Social Dance".into(),
             teaser: "Blub".into(),
             description: "kakak".into(),
         })
         .expect("Could not create event entry!");
-
-    println!("{:?}", event);
 
     result
 }
