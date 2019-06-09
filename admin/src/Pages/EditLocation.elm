@@ -1,5 +1,6 @@
 module Pages.EditLocation exposing
     ( InputMsg
+    , LoadError(..)
     , LoadModel
     , LoadMsg
     , LocationInput

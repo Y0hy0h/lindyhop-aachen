@@ -2,11 +2,11 @@ module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Browser
-import Css exposing (auto, em, zero)
+import Css exposing (auto, em, pre, zero)
 import Css.Global as Css
 import Events exposing (Event, Events, Location, Occurrence)
 import Html.Styled as Html exposing (Html, a, div, h1, h2, label, li, ol, p, text)
-import Html.Styled.Attributes exposing (href, type_, value)
+import Html.Styled.Attributes exposing (css, href, type_, value)
 import Html.Styled.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Decode
@@ -67,7 +67,7 @@ loadedFromModel model =
 
 type RouteModel
     = LoadingRoute
-    | ErrorLoading
+    | ErrorLoading String
     | NotFound
     | Overview Pages.Overview.Model
     | CreateEvent Pages.CreateEvent.Model
@@ -153,7 +153,7 @@ update msg model =
                             ( Loaded key (Overview newSubModel), Cmd.none )
 
                         Err error ->
-                            ( Loaded key ErrorLoading, Cmd.none )
+                            ( Loaded key (ErrorLoading <| errorMessageFromHttpError error), Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -166,7 +166,7 @@ update msg model =
                             ( Loaded key (CreateEvent newSubModel), Cmd.none )
 
                         Err error ->
-                            ( Loaded key ErrorLoading, Cmd.none )
+                            ( Loaded key (ErrorLoading <| errorMessageFromHttpError error), Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -192,7 +192,16 @@ update msg model =
                             ( Loaded key (EditEvent newSubModel), Cmd.none )
 
                         Err error ->
-                            ( Loaded key ErrorLoading, Cmd.none )
+                            let
+                                errorMessage =
+                                    case error of
+                                        Pages.EditEvent.Http httpError ->
+                                            errorMessageFromHttpError httpError
+
+                                        Pages.EditEvent.InvalidId id ->
+                                            "The id " ++ id ++ " is invalid."
+                            in
+                            ( Loaded key (ErrorLoading errorMessage), Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -231,7 +240,16 @@ update msg model =
                             ( Loaded key (EditLocation newSubModel), Cmd.none )
 
                         Err error ->
-                            ( Loaded key ErrorLoading, Cmd.none )
+                            let
+                                errorMessage =
+                                    case error of
+                                        Pages.EditLocation.Http httpError ->
+                                            errorMessageFromHttpError httpError
+
+                                        Pages.EditLocation.InvalidId id ->
+                                            "The id " ++ id ++ " is invalid."
+                            in
+                            ( Loaded key (ErrorLoading errorMessage), Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -305,6 +323,25 @@ updateLoaded updater model =
             updater loaded |> Tuple.mapFirst (\newLoaded -> Loading key newLoaded loading)
 
 
+errorMessageFromHttpError : Http.Error -> String
+errorMessageFromHttpError httpError =
+    case httpError of
+        Http.BadUrl url ->
+            "The URL " ++ url ++ " is invalid."
+
+        Http.Timeout ->
+            "The request timed out."
+
+        Http.NetworkError ->
+            "A network error occurred."
+
+        Http.BadStatus status ->
+            "The response had status " ++ String.fromInt status ++ "."
+
+        Http.BadBody error ->
+            "The response's body was invalid:\n" ++ error
+
+
 
 -- View
 
@@ -317,8 +354,8 @@ view model =
                 LoadingRoute ->
                     viewLoading
 
-                ErrorLoading ->
-                    viewErrorLoading
+                ErrorLoading error ->
+                    viewErrorLoading error
 
                 NotFound ->
                     viewNotFound
@@ -362,9 +399,11 @@ viewLoading =
     [ text "Loading..." ]
 
 
-viewErrorLoading : List (Html Msg)
-viewErrorLoading =
-    [ text "There was an error while loading the app." ]
+viewErrorLoading : String -> List (Html Msg)
+viewErrorLoading error =
+    [ p [] [ text "There was an error while loading the app." ]
+    , p [ css [ Css.fontFamily Css.monospace, Css.whiteSpace pre ] ] [ text error ]
+    ]
 
 
 viewNotFound : List (Html Msg)

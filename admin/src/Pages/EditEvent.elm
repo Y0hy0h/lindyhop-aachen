@@ -1,6 +1,7 @@
 module Pages.EditEvent exposing
     ( EventInput
     , InputMsg
+    , LoadError(..)
     , LoadModel
     , LoadMsg
     , Model
