@@ -17,25 +17,6 @@ pub fn initialize(rocket: Rocket) -> Result<Rocket, Rocket> {
         }
     };
 
-    let store = Store(conn);
-
-    store
-        .create(Location {
-            name: "Test".to_string(),
-            address: "Somewhere".to_string(),
-        })
-        .expect("Could not create entry!");
-
-    let event = store
-        .create(Event {
-            name: "Social Dance".into(),
-            teaser: "Blub".into(),
-            description: "kakak".into(),
-        })
-        .expect("Could not create event entry!");
-
-    println!("{:?}", event);
-
     result
 }
 
