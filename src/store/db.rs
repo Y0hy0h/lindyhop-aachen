@@ -1,3 +1,5 @@
+use std::hash::{Hash, Hasher};
+
 use diesel::{self, prelude::*};
 use rocket::Rocket;
 use uuid::Uuid;
@@ -59,6 +61,7 @@ use diesel::sqlite::Sqlite;
 use diesel::types::{FromSql, ToSql};
 use schema::*;
 
+// SqlId implementation taken from https://github.com/forte-music/core/blob/fc9cd6217708b0dd6ae684df3a53276804479c59/src/models/id.rs#L67
 #[derive(Debug, Deserialize, FromSqlRow)]
 pub struct SqlId(Uuid);
 
@@ -104,7 +107,33 @@ impl<'a> AsExpression<Binary> for &'a SqlId {
     }
 }
 
-#[derive(Queryable, Insertable, AsChangeset)]
+impl Hash for SqlId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+
+    fn hash_slice<H: Hasher>(data: &[Self], state: &mut H)
+    where
+        Self: Sized,
+    {
+        let inner: Vec<Uuid> = data.iter().map(|s| s.0).collect();
+        Uuid::hash_slice(inner.as_ref(), state);
+    }
+}
+
+impl PartialEq for SqlId{
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.0.ne(&other.0)
+    }
+}
+
+impl Eq for SqlId{}
+
+#[derive(Queryable, Insertable,Identifiable,PartialEq, AsChangeset)]
 #[table_name = "events"]
 pub struct SqlEvent {
     pub id: SqlId,
@@ -113,8 +142,8 @@ pub struct SqlEvent {
     pub description: String,
 }
 
-impl From<SqlEvent> for (Id, Event) {
-    fn from(event: SqlEvent) -> (Id, Event) {
+impl From<SqlEvent> for (super::Id, Event) {
+    fn from(event: SqlEvent) -> (super::Id, Event) {
         (
             event.id.0,
             Event {
@@ -139,7 +168,8 @@ impl From<Event> for SqlEvent {
     }
 }
 
-#[derive(Queryable, Insertable, AsChangeset)]
+#[derive(Queryable, Insertable,Identifiable, PartialEq, AsChangeset, Associations)]
+#[belongs_to(Event)]
 #[table_name = "occurrences"]
 pub struct SqlOccurrence {
     pub id: SqlId,

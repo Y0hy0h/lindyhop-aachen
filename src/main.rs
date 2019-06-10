@@ -12,10 +12,10 @@ extern crate diesel;
 extern crate diesel_migrations;
 
 use rocket::response::NamedFile;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
 
 use chrono::prelude::*;
 use maud::{html, Markup, DOCTYPE};
@@ -23,8 +23,8 @@ use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
 use store::routes::*;
+use store::Overview;
 use store::Store;
-use store::{Event, Id, Location, Occurrence};
 
 #[get("/")]
 fn index(store: Store) -> Markup {
@@ -36,9 +36,9 @@ fn index(store: Store) -> Markup {
             }
             body {
                 h1 { "Lindy Hop Aachen" }
-                @let (locations, events) = store.read_all();
+                @let Overview {locations, events} = store.read_all();
                 ul {
-                    @for (_, event, occurrences) in events {
+                    @for (event, occurrences) in events.values() {
                         li {
                             (event.name)
                             ul {
@@ -50,7 +50,7 @@ fn index(store: Store) -> Markup {
                     }
                 }
                 ul {
-                    @for (_, location) in locations {
+                    @for location in locations.values() {
                         li { ( location.name ) }
                     }
                 }
@@ -93,28 +93,9 @@ fn admin() -> Option<NamedFile> {
     NamedFile::open(Path::new("admin/dist/index.html")).ok()
 }
 
-#[derive(Deserialize, Serialize)]
-struct Overview {
-    locations: HashMap<Id, Location>,
-    events: HashMap<Id, (Event, Vec<Occurrence>)>,
-}
-
 #[get("/")]
-fn api_overview(
-    store: Store,
-) -> Json<Overview> {
-    let (locations_vec, events_vec) = store.read_all();
-    let locations = HashMap::from_iter(locations_vec);
-    let events_vec: Vec<(Id, (Event, Vec<Occurrence>))> = events_vec
-        .into_iter()
-        .map(|(id, event, occurrences)| (id, (event, occurrences)))
-        .collect();
-    let events = HashMap::from_iter(events_vec);
-
-    Json(Overview {
-        locations,
-        events
-    })
+fn api_overview(store: Store) -> Json<Overview> {
+    Json(store.read_all())
 }
 
 fn main() {
@@ -127,7 +108,6 @@ fn main() {
         .mount("/", routes![index, admin_route, admin_subroute])
         .mount("/api", routes![api_overview])
         .mount("/api/events/", event::routes())
-        .mount("/api/occurrences/", occurrence::routes())
         .mount("/api/locations/", location::routes())
         .launch();
 }

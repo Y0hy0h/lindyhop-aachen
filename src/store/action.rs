@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use diesel::QueryResult;
 
 pub trait Actions<T> {
     type Id;
 
-    fn all(&self) -> Vec<(Self::Id, T)>;
+    fn all(&self) -> HashMap<Self::Id, T>;
     fn create(&self, item: T) -> QueryResult<Self::Id>;
     fn read(&self, id: Self::Id) -> QueryResult<T>;
     fn update(&self, id: Self::Id, new_item: T) -> QueryResult<T>;
@@ -15,7 +17,7 @@ macro_rules! derive_actions {
         impl Actions<$t> for Store {
             type Id = Id;
 
-            fn all(&self) -> Vec<(Self::Id, $t)> {
+            fn all(&self) -> HashMap<Self::Id, $t> {
                 schema
                     .load::<$s>(&*self.0)
                     .expect("Could not load database")
