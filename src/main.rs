@@ -87,10 +87,6 @@ fn render_occurrence(entry: &OccurrenceWithEvent, locations: &HashMap<Id, Locati
         div.quick-info { ( entry_html.quick_info ) }
         h2.title { ( entry_html.title ) }
         div.content {
-            ul.info {
-                li.time { ( entry_html.time ) }
-                li.location { ( entry_html.location ) }
-            }
             div.description {
                 div.teaser { ( entry_html.teaser ) }
             }
@@ -101,8 +97,6 @@ fn render_occurrence(entry: &OccurrenceWithEvent, locations: &HashMap<Id, Locati
 struct OccurrenceHtml {
     title: Markup,
     quick_info: Markup,
-    time: Markup,
-    location: Markup,
     teaser: Markup,
 }
 
@@ -120,8 +114,6 @@ fn html_from_occurrence(
     OccurrenceHtml {
         title: html! { ( event.title ) },
         quick_info: html! { ( format!("{} - {}", occurrence.start.format("%H:%M"), location_name) ) },
-        time: html! { ( occurrence.start.format("%H:%M")) " bis " (occurrence.end().format("%H:%M") ) },
-        location: html! { ( location_name ) },
         teaser: html! { ( event.teaser ) },
     }
 }
