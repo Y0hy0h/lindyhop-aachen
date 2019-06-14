@@ -65,7 +65,13 @@ mod occurrence_actions {
 #[derive(Deserialize, Serialize)]
 pub struct Overview {
     pub locations: HashMap<Id, Location>,
-    pub events: HashMap<Id, (Event, Vec<Occurrence>)>,
+    pub events: HashMap<Id, EventWithOccurrences>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct EventWithOccurrences {
+    pub event: Event,
+    pub occurrences: Vec<Occurrence>,
 }
 
 pub type Id = Uuid;
@@ -79,7 +85,7 @@ impl Store {
 
     pub fn read_all(&self) -> Overview {
         let locs: HashMap<Id, Location> = self.all();
-        let evts: HashMap<Id, (Event, Vec<Occurrence>)> = self.all();
+        let evts: HashMap<Id, EventWithOccurrences> = self.all();
 
         Overview {
             locations: locs,
@@ -88,19 +94,25 @@ impl Store {
     }
 }
 
-impl Actions<(Event, Vec<Occurrence>)> for Store {
-    type Id = Id;
+#[derive(Debug)]
+pub enum DeleteError<T> {
+    DieselError(diesel::result::Error),
+    Dependency(Vec<T>),
+}
 
-    fn all(&self) -> HashMap<Self::Id, (Event, Vec<Occurrence>)> {
+impl Actions<EventWithOccurrences> for Store {
+    type Id = Id;
+    type DeleteError = DeleteError<Occurrence>;
+
+    fn all(&self) -> HashMap<Self::Id, EventWithOccurrences> {
         use db::schema::events::dsl::events;
-        use diesel::BelongingToDsl;
 
         events
             .load::<SqlEvent>(&*self.0)
             .expect("Loading from database failed.")
             .into_iter()
             .map(|sql_event| {
-                let occrs: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_event)
+                let occurrences: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_event)
                     .load::<SqlOccurrence>(&*self.0)
                     .expect("Loading from database failed.")
                     .into_iter()
@@ -112,61 +124,122 @@ impl Actions<(Event, Vec<Occurrence>)> for Store {
                     .collect();
 
                 let (id, event) = sql_event.into();
-                
-                (id, (event, occrs))
+
+                (id, EventWithOccurrences { event, occurrences })
             })
             .collect()
     }
 
-    fn create(&self, item: (Event, Vec<Occurrence>)) -> QueryResult<Self::Id> {
+    fn create(&self, item: EventWithOccurrences) -> QueryResult<Self::Id> {
         use db::schema::events::dsl::events;
-        let sql_event: SqlEvent = item.0.into();
+        let sql_event: SqlEvent = item.event.into();
         diesel::insert_into(events)
             .values(&sql_event)
             .execute(&*self.0)?;
 
         use db::schema::occurrences::dsl::occurrences;
-        let sql_occurrences:Vec<SqlOccurrence> = item.1.into_iter().map(|occurrence| occurrence.into()).collect();
+        let sql_occurrences: Vec<SqlOccurrence> = item
+            .occurrences
+            .into_iter()
+            .map(|occurrence| occurrence.into())
+            .collect();
         diesel::insert_into(occurrences)
-        .values(&sql_occurrences)
-        .execute(&*self.0)?;
+            .values(&sql_occurrences)
+            .execute(&*self.0)?;
 
         Ok(sql_event.id.into())
     }
 
-    fn read(&self, item_id: Self::Id) -> QueryResult<(Event, Vec<Occurrence>)> {
+    fn read(&self, item_id: Self::Id) -> QueryResult<EventWithOccurrences> {
         use db::schema::events::dsl::events;
-        events.find(item_id.into()).first::<SqlEvent>(&*self.0).map(|sql_event| {
-            let (_, event) = sql_event.into();
+        use db::SqlId;
+        let sql_event = events
+            .find(SqlId::from(item_id))
+            .first::<SqlEvent>(&*self.0)?;
 
-            (event, vec![])
-        })
+        let occurrences: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_event)
+            .load::<SqlOccurrence>(&*self.0)?
+            .into_iter()
+            .map(|sql_occurrence| {
+                let (_, occurrence) = sql_occurrence.into();
+
+                occurrence
+            })
+            .collect();
+
+        let (_, event) = sql_event.into();
+
+        Ok(EventWithOccurrences { event, occurrences })
     }
 
-    fn update(&self, item_id: Self::Id, new_item: (Event, Vec<Occurrence>)) -> QueryResult<(Event, Vec<Occurrence>)> {
+    fn update(
+        &self,
+        item_id: Self::Id,
+        new_item: EventWithOccurrences,
+    ) -> QueryResult<EventWithOccurrences> {
         use db::SqlId;
 
         let raw_id: SqlId = item_id.into();
         use db::schema::events::dsl::events;
-        let (_, previous): (Id, Event) = events.find(&raw_id).first::<SqlEvent>(&*self.0)?.into();
+        let sql_previous = events.find(raw_id).first::<SqlEvent>(&*self.0)?;
 
-        diesel::update(events.find(&raw_id))
-            .set::<SqlEvent>(new_item.0.into())
-            .execute(&*self.0)?;
+        let associated_occurrences = SqlOccurrence::belonging_to(&sql_previous);
+        let occurrences: Vec<Occurrence> = associated_occurrences
+            .load::<SqlOccurrence>(&*self.0)?
+            .into_iter()
+            .map(|sql_occurrence| {
+                let (_, occurrence) = sql_occurrence.into();
 
-        Ok(previous)
+                occurrence
+            })
+            .collect();
+
+        diesel::delete(associated_occurrences).execute(&*self.0);
+
+        let new_sql_item: SqlEvent = new_item.event.into();
+        diesel::update(&sql_previous)
+            .set(new_sql_item)
+            .execute(&*self.0);
+
+        let (_, previous) = sql_previous.into();
+        Ok(EventWithOccurrences {
+            event: previous,
+            occurrences,
+        })
     }
 
-    fn delete(&self, id: Self::Id) -> QueryResult<(Event, Vec<Occurrence>)> {
+    fn delete(&self, id: Self::Id) -> Result<EventWithOccurrences, Self::DeleteError> {
         use db::SqlId;
 
         let raw_id: SqlId = id.into();
         use db::schema::events::dsl::events;
-        let (_, previous): (Id, Event) = events.find(&raw_id).first::<SqlEvent>(&*self.0)?.into();
+        let sql_previous = events
+            .find(raw_id)
+            .first::<SqlEvent>(&*self.0)
+            .map_err(DeleteError::DieselError)?;
 
-        diesel::delete(events.find(&raw_id)).execute(&*self.0)?;
+        let occurrences: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_previous)
+            .load::<SqlOccurrence>(&*self.0)
+            .expect("Loading from database failed.")
+            .into_iter()
+            .map(|sql_occurrence| {
+                let (_, occurrence) = sql_occurrence.into();
 
-        Ok(previous)
+                occurrence
+            })
+            .collect();
+
+        if occurrences.len() > 0 {
+            return Err(DeleteError::Dependency(occurrences));
+        }
+
+        diesel::delete(&sql_previous).execute(&*self.0);
+
+        let (_, previous) = sql_previous.into();
+        Ok(EventWithOccurrences {
+            event: previous,
+            occurrences,
+        })
     }
 }
 

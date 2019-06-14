@@ -22,9 +22,7 @@ use maud::{html, Markup, DOCTYPE};
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
-use store::routes::*;
-use store::Overview;
-use store::Store;
+use store::{EventWithOccurrences, Overview, Store};
 
 #[get("/")]
 fn index(store: Store) -> Markup {
@@ -38,7 +36,7 @@ fn index(store: Store) -> Markup {
                 h1 { "Lindy Hop Aachen" }
                 @let Overview {locations, events} = store.read_all();
                 ul {
-                    @for (event, occurrences) in events.values() {
+                    @for EventWithOccurrences {event, occurrences} in events.values() {
                         li {
                             (event.name)
                             ul {
@@ -99,6 +97,8 @@ fn api_overview(store: Store) -> Json<Overview> {
 }
 
 fn main() {
+    use store::routes::*;
+
     rocket::ignite()
         .attach(Store::fairing())
         .mount(
@@ -107,7 +107,7 @@ fn main() {
         )
         .mount("/", routes![index, admin_route, admin_subroute])
         .mount("/api", routes![api_overview])
-        .mount("/api/events/", event::routes())
+        .mount("/api/events/", event_with_occurrences::routes())
         .mount("/api/locations/", location::routes())
         .launch();
 }

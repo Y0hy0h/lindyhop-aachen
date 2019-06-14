@@ -121,7 +121,7 @@ impl Hash for SqlId {
     }
 }
 
-impl PartialEq for SqlId{
+impl PartialEq for SqlId {
     fn eq(&self, other: &Self) -> bool {
         self.0.eq(&other.0)
     }
@@ -131,9 +131,9 @@ impl PartialEq for SqlId{
     }
 }
 
-impl Eq for SqlId{}
+impl Eq for SqlId {}
 
-#[derive(Queryable, Insertable,Identifiable,PartialEq, AsChangeset)]
+#[derive(Queryable, Insertable, Identifiable, PartialEq, AsChangeset)]
 #[table_name = "events"]
 pub struct SqlEvent {
     pub id: SqlId,
@@ -168,8 +168,8 @@ impl From<Event> for SqlEvent {
     }
 }
 
-#[derive(Queryable, Insertable,Identifiable, PartialEq, AsChangeset, Associations)]
-#[belongs_to(Event)]
+#[derive(Queryable, Insertable, Identifiable, PartialEq, AsChangeset, Associations)]
+#[belongs_to(SqlEvent, foreign_key = "event_id")]
 #[table_name = "occurrences"]
 pub struct SqlOccurrence {
     pub id: SqlId,
