@@ -244,7 +244,6 @@ impl Actions<EventWithOccurrences> for Store {
             .into_iter()
             .map(|occurrence| (occurrence, raw_id.clone()).into())
             .collect();
-        print!("{:?}", sql_occurrences);
         diesel::insert_into(occurrences_table)
             .values(&sql_occurrences)
             .execute(&*self.0)?;
