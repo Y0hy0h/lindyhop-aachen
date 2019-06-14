@@ -1,6 +1,7 @@
 module Pages.EditEvent exposing
     ( EventInput
     , InputMsg
+    , LoadError(..)
     , LoadModel
     , LoadMsg
     , Model
@@ -160,7 +161,7 @@ init : String -> ( LoadModel, Cmd LoadMsg )
 init rawId =
     let
         fetchEvents =
-            Events.fetchEvents FetchedEvents
+            Events.fetchStore FetchedEvents
     in
     ( LoadModel rawId, fetchEvents )
 

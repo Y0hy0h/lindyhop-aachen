@@ -1,29 +1,30 @@
-#![feature(proc_macro_hygiene, decl_macro, map_get_key_value)]
+#![feature(proc_macro_hygiene, decl_macro, custom_attribute)]
 
-mod events;
-mod id_map;
-
-use std::path::{Path, PathBuf};
-use std::sync::RwLock;
+mod store;
 
 #[macro_use]
 extern crate rocket;
+#[macro_use]
+extern crate rocket_contrib;
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
+
+use rocket::response::NamedFile;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+
 use chrono::prelude::*;
 use maud::{html, Markup, DOCTYPE};
-use rocket::response::status::NotFound;
-use rocket::response::NamedFile;
-use rocket::State;
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
-use rocket_contrib::uuid::Uuid;
 
-use events::{Event, Events, Location, Locations, Occurrence};
-use id_map::Id;
+use store::action::Actions;
+use store::{Event, Id, Location, Occurrence, OccurrenceWithEvent, Overview, Store};
 
 #[get("/")]
-fn index(store: State<Store>) -> Markup {
-    let store = store.read().unwrap();
-
+fn index(store: Store) -> Markup {
     html! {
         ( DOCTYPE )
         html lang="de" {
@@ -36,8 +37,9 @@ fn index(store: State<Store>) -> Markup {
                 }
                 main {
                     ol.schedule {
-                        @for entry in store.occurrences_by_date() {
-                            li { ( render_entry(&entry, &store.locations) ) }
+                        @let locations: HashMap<Id, Location> = store.all();
+                        @for occurrences_for_date in store.occurrences_by_date() {
+                            li { ( render_entry(&occurrences_for_date, &locations) ) }
                         }
                     }
                 }
@@ -47,8 +49,8 @@ fn index(store: State<Store>) -> Markup {
 }
 
 fn render_entry(
-    (date, entries): &(NaiveDate, Vec<(&Occurrence, &Event)>),
-    locations: &Locations,
+    (date, entries): &(NaiveDate, Vec<OccurrenceWithEvent>),
+    locations: &HashMap<Id, Location>,
 ) -> Markup {
     html! {
         div.date { ( format_date(date) ) }
@@ -77,17 +79,17 @@ fn format_date(date: &NaiveDate) -> String {
     date.format(&format).to_string()
 }
 
-fn render_occurrence((occurrence, event): &(&Occurrence, &Event), locations: &Locations) -> Markup {
+fn render_occurrence(entry: &OccurrenceWithEvent, locations: &HashMap<Id, Location>) -> Markup {
     html! {
-        @let entry =  html_from_occurrence(occurrence, event, locations);
-        h2.title { ( entry.title )}
+        @let entry_html =  html_from_occurrence(&entry.occurrence, &entry.event, locations);
+        h2.title { ( entry_html.title )}
         div.content {
             ul.quick-info {
-                li.time { ( entry.time ) }
-                li.location { ( entry.location ) }
+                li.time { ( entry_html.time ) }
+                li.location { ( entry_html.location ) }
             }
             div.description {
-                div.teaser { ( entry.teaser ) }
+                div.teaser { ( entry_html.teaser ) }
             }
         }
     }
@@ -103,11 +105,9 @@ struct OccurrenceHtml {
 fn html_from_occurrence(
     occurrence: &Occurrence,
     event: &Event,
-    locations: &Locations,
+    locations: &HashMap<Id, Location>,
 ) -> OccurrenceHtml {
-    let maybe_location = locations
-        .validate(occurrence.location_id)
-        .map(|id| locations.get(&id));
+    let maybe_location = locations.get(&occurrence.location_id);
 
     OccurrenceHtml {
         time: html! {(occurrence.start.format("%H:%M")) small { " bis " (occurrence.end().format("%H:%M"))} },
@@ -121,121 +121,13 @@ fn html_from_occurrence(
     }
 }
 
-#[get("/api/events")]
-fn all_events(store: State<Store>) -> Json<events::Store> {
-    let store = store.read().unwrap();
-    Json(store.clone())
-}
-
-#[post("/api/events", data = "<new_event>")]
-fn create_event(new_event: Json<Event>, store: State<Store>) -> Json<Id<Event>> {
-    let mut store = store.write().unwrap();
-
-    Json(store.events.insert(new_event.into_inner()))
-}
-
-#[get("/api/events/<uuid>")]
-fn read_event(uuid: Uuid, store: State<Store>) -> Option<Json<Event>> {
-    let store = store.read().unwrap();
-
-    store
-        .events
-        .validate(uuid.into_inner())
-        .map(|id| Json(store.events.get(&id).clone()))
-}
-
-#[put("/api/events/<uuid>", data = "<new_event>")]
-fn update_event(
-    uuid: Uuid,
-    new_event: Json<Event>,
-    store: State<Store>,
-) -> Result<Json<Event>, NotFound<&'static str>> {
-    let mut store = store.write().unwrap();
-
-    store
-        .events
-        .validate(uuid.into_inner())
-        .ok_or("The uuid does not belong to an event.")
-        .map(|id| {
-            store.events.set(id, new_event.into_inner());
-
-            Json(store.events.get(&id).clone())
-        })
-        .map_err(|err| NotFound(err))
-}
-
-#[delete("/api/events/<uuid>")]
-fn delete_event(uuid: Uuid, store: State<Store>) -> Result<Json<Event>, NotFound<&'static str>> {
-    let mut store = store.write().unwrap();
-
-    store
-        .events
-        .validate(uuid.into_inner())
-        .ok_or(NotFound("The uuid does not belong to an event."))
-        .map(|id| Json(store.events.remove(&id)))
-}
-
-#[post("/api/locations", data = "<new_location>")]
-fn create_location(new_location: Json<Location>, store: State<Store>) -> Json<Id<Location>> {
-    let mut store = store.write().unwrap();
-
-    Json(store.locations.insert(new_location.into_inner()))
-}
-
-#[get("/api/locations/<uuid>")]
-fn read_location(uuid: Uuid, store: State<Store>) -> Option<Json<Location>> {
-    let store = store.read().unwrap();
-
-    store
-        .locations
-        .validate(uuid.into_inner())
-        .map(|id| Json(store.locations.get(&id).clone()))
-}
-
-#[put("/api/locations/<uuid>", data = "<new_location>")]
-fn update_location(
-    uuid: Uuid,
-    new_location: Json<Location>,
-    store: State<Store>,
-) -> Option<Json<Location>> {
-    let mut store = store.write().unwrap();
-
-    store.locations.validate(uuid.into_inner()).map(|id| {
-        store.locations.set(id, new_location.into_inner());
-
-        Json(store.locations.get(&id).clone())
-    })
-}
-
-#[derive(Responder, Debug)]
-enum DeleteLocationError {
-    #[response(status = 409)]
-    DependentEvents(Json<Vec<Id<Event>>>),
-    InvalidId(NotFound<&'static str>),
-}
-
-#[delete("/api/locations/<uuid>")]
-fn delete_location(uuid: Uuid, store: State<Store>) -> Result<Json<Location>, DeleteLocationError> {
-    let mut store = store.write().unwrap();
-
-    use DeleteLocationError::*;
-    store
-        .locations
-        .validate(uuid.into_inner())
-        .ok_or(InvalidId(NotFound("No event was found with the id.")))
-        .and_then(|id| {
-            store
-                .delete_location(&id)
-                .map_err(|dependent_events| DependentEvents(Json(dependent_events)))
-        })
-        .map(|location| Json(location))
-}
-
 #[get("/admin")]
 fn admin_route() -> Option<NamedFile> {
     admin()
 }
 
+// We also want to serve the file when subroutes are called, e. g. `/admin/event/42`.
+// Removing this would break reloading the admin on subroutes.
 #[get("/admin/<path..>")]
 #[allow(unused_variables)]
 fn admin_subroute(path: PathBuf) -> Option<NamedFile> {
@@ -246,148 +138,23 @@ fn admin() -> Option<NamedFile> {
     NamedFile::open(Path::new("admin/dist/index.html")).ok()
 }
 
-type Store = RwLock<events::Store>;
+#[get("/")]
+fn api_overview(store: Store) -> Json<Overview> {
+    Json(store.read_all())
+}
 
 fn main() {
-    let mut locations = Locations::new();
-    let chico_id = locations.insert(Location {
-        name: "Chico Mendès".to_string(),
-        address: "Aachen".to_string(),
-    });
-    let sencillito_id = locations.insert(Location {
-        name: "Sencillito".to_string(),
-        address: "Aachen".to_string(),
-    });
-
-    let mut events = Events::new();
-    events.insert(Event {
-        title: "Social Dance".to_string(),
-        teaser: "Einfach tanzen.".to_string(),
-        description: "Lindy Hop tanzen in einer Bar.".to_string(),
-        occurrences: vec![
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 2).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 3).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 4).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 8).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: sencillito_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 15).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 16).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 21).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 5, 10).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 5, 15).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 5, 20).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-        ],
-    });
-    events.insert(Event {
-        title: "Anfängerkurs".to_string(),
-        teaser: "Hereinschnuppern.".to_string(),
-        description: "Ein Einführung für diejenigen, die noch nie Lindy Hop getanzt haben."
-            .to_string(),
-        occurrences: vec![
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 2).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 8).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: sencillito_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 15).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 16).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 4, 21).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 5, 10).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 5, 15).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-            Occurrence {
-                start: NaiveDate::from_ymd(2019, 5, 20).and_hms(20, 30, 00),
-                duration: 90,
-                location_id: chico_id.to_unsafe(),
-            },
-        ],
-    });
+    use store::routes::*;
 
     rocket::ignite()
-        .manage(RwLock::new(events::Store::from(locations, events)))
+        .attach(Store::fairing())
         .mount(
             "/static",
             StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")),
         )
-        .mount(
-            "/",
-            routes![
-                index,
-                all_events,
-                create_event,
-                read_event,
-                update_event,
-                delete_event,
-                create_location,
-                read_location,
-                update_location,
-                delete_location,
-                admin_route,
-                admin_subroute
-            ],
-        )
+        .mount("/", routes![index, admin_route, admin_subroute])
+        .mount("/api", routes![api_overview])
+        .mount("/api/events/", event_with_occurrences::routes())
+        .mount("/api/locations/", location::routes())
         .launch();
 }

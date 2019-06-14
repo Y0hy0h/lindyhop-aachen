@@ -1,5 +1,6 @@
 module Pages.EditLocation exposing
     ( InputMsg
+    , LoadError(..)
     , LoadModel
     , LoadMsg
     , LocationInput
@@ -80,7 +81,7 @@ init : String -> ( LoadModel, Cmd LoadMsg )
 init rawId =
     let
         fetchEvents =
-            Events.fetchEvents FetchedEvents
+            Events.fetchStore FetchedEvents
     in
     ( LoadModel rawId, fetchEvents )
 
