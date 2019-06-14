@@ -12,6 +12,7 @@ extern crate diesel;
 extern crate diesel_migrations;
 
 use rocket::response::NamedFile;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use chrono::prelude::*;
@@ -19,7 +20,8 @@ use maud::{html, Markup, DOCTYPE};
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
-use store::{EventWithOccurrences, Overview, Store};
+use store::action::Actions;
+use store::{Event, Id, Location, Occurrence, OccurrenceWithEvent, Overview, Store};
 
 #[get("/")]
 fn index(store: Store) -> Markup {
@@ -35,8 +37,9 @@ fn index(store: Store) -> Markup {
                 }
                 main {
                     ol.schedule {
-                        @for entry in store.occurrences_by_date() {
-                            li { ( render_entry(&entry, &store.locations) ) }
+                        @let locations: HashMap<Id, Location> = store.all();
+                        @for occurrences_for_date in store.occurrences_by_date() {
+                            li { ( render_entry(&occurrences_for_date, &locations) ) }
                         }
                     }
                 }
@@ -46,8 +49,8 @@ fn index(store: Store) -> Markup {
 }
 
 fn render_entry(
-    (date, entries): &(NaiveDate, Vec<(&Occurrence, &Event)>),
-    locations: &Locations,
+    (date, entries): &(NaiveDate, Vec<OccurrenceWithEvent>),
+    locations: &HashMap<Id, Location>,
 ) -> Markup {
     html! {
         div.date { ( format_date(date) ) }
@@ -76,17 +79,17 @@ fn format_date(date: &NaiveDate) -> String {
     date.format(&format).to_string()
 }
 
-fn render_occurrence((occurrence, event): &(&Occurrence, &Event), locations: &Locations) -> Markup {
+fn render_occurrence(entry: &OccurrenceWithEvent, locations: &HashMap<Id, Location>) -> Markup {
     html! {
-        @let entry =  html_from_occurrence(occurrence, event, locations);
-        h2.title { ( entry.title )}
+        @let entry_html =  html_from_occurrence(&entry.occurrence, &entry.event, locations);
+        h2.title { ( entry_html.title )}
         div.content {
             ul.quick-info {
-                li.time { ( entry.time ) }
-                li.location { ( entry.location ) }
+                li.time { ( entry_html.time ) }
+                li.location { ( entry_html.location ) }
             }
             div.description {
-                div.teaser { ( entry.teaser ) }
+                div.teaser { ( entry_html.teaser ) }
             }
         }
     }
@@ -102,11 +105,9 @@ struct OccurrenceHtml {
 fn html_from_occurrence(
     occurrence: &Occurrence,
     event: &Event,
-    locations: &Locations,
+    locations: &HashMap<Id, Location>,
 ) -> OccurrenceHtml {
-    let maybe_location = locations
-        .validate(occurrence.location_id)
-        .map(|id| locations.get(&id));
+    let maybe_location = locations.get(&occurrence.location_id);
 
     OccurrenceHtml {
         time: html! {(occurrence.start.format("%H:%M")) small { " bis " (occurrence.end().format("%H:%M"))} },
@@ -115,7 +116,7 @@ fn html_from_occurrence(
                 None => "Steht noch nicht fest."
                 }
         },
-        title: html! { (event.title) },
+        title: html! { (event.name) },
         teaser: html! { (event.teaser) },
     }
 }

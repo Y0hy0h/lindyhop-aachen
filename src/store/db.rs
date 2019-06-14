@@ -133,7 +133,7 @@ impl PartialEq for SqlId {
 
 impl Eq for SqlId {}
 
-#[derive(Queryable, Insertable,Debug, Identifiable, Clone, PartialEq, AsChangeset)]
+#[derive(Queryable, Insertable, Debug, Identifiable, Clone, PartialEq, AsChangeset)]
 #[table_name = "events"]
 pub struct SqlEvent {
     pub id: SqlId,
@@ -168,7 +168,9 @@ impl From<Event> for SqlEvent {
     }
 }
 
-#[derive(Queryable, Insertable, Clone,Debug, Identifiable, PartialEq, AsChangeset, Associations)]
+#[derive(
+    Queryable, Insertable, Clone, Debug, Identifiable, PartialEq, AsChangeset, Associations,
+)]
 #[belongs_to(SqlEvent, foreign_key = "event_id")]
 #[table_name = "occurrences"]
 pub struct SqlOccurrence {
@@ -206,7 +208,7 @@ impl From<(Occurrence, SqlId)> for SqlOccurrence {
     }
 }
 
-#[derive(Queryable, Clone, Insertable,Debug, AsChangeset)]
+#[derive(Queryable, Clone, Insertable, Debug, AsChangeset)]
 #[table_name = "locations"]
 pub struct SqlLocation {
     pub id: SqlId,

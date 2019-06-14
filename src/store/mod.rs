@@ -3,9 +3,9 @@ mod db;
 pub mod action;
 pub mod routes;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
-use chrono::NaiveDateTime;
+use chrono::{NaiveDate, NaiveDateTime};
 use rocket::request::{FromRequest, Outcome, Request};
 use rocket::{fairing, fairing::Fairing, Rocket};
 use uuid::Uuid;
@@ -17,14 +17,14 @@ use serde::{Deserialize, Serialize};
 
 use action::Actions;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
     pub name: String,
     pub teaser: String,
     pub description: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Occurrence {
     pub start: NaiveDateTime,
     pub duration: Duration,
@@ -32,6 +32,15 @@ pub struct Occurrence {
 }
 
 type Duration = u32;
+
+impl Occurrence {
+    pub fn end(&self) -> NaiveDateTime {
+        use std::convert::TryInto;
+        use std::ops::Add;
+        self.start
+            .add(chrono::Duration::minutes(self.duration.try_into().unwrap()))
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Location {
@@ -65,6 +74,12 @@ pub struct EventWithOccurrences {
     pub occurrences: Vec<Occurrence>,
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct OccurrenceWithEvent {
+    pub occurrence: Occurrence,
+    pub event: Event,
+}
+
 pub type Id = Uuid;
 
 pub struct Store(db::Connection);
@@ -82,6 +97,37 @@ impl Store {
             locations: locs,
             events: evts,
         }
+    }
+
+    pub fn occurrences_by_date(&self) -> BTreeMap<NaiveDate, Vec<OccurrenceWithEvent>> {
+        use db::schema::events::dsl::events;
+        use db::schema::occurrences::dsl::{occurrences, start};
+
+        let sql_occurrences = occurrences
+            .order(start.asc())
+            .load::<SqlOccurrence>(&*self.0)
+            .unwrap();
+
+        sql_occurrences
+            .into_iter()
+            .map(|sql_occurrence| {
+                let sql_event = events
+                    .find(sql_occurrence.event_id.clone())
+                    .first::<SqlEvent>(&*self.0)
+                    .unwrap();
+                let (_, occurrence) = sql_occurrence.into();
+                let (_, event) = sql_event.into();
+                OccurrenceWithEvent { occurrence, event }
+            })
+            .fold(
+                BTreeMap::new(),
+                |mut acc: BTreeMap<NaiveDate, Vec<OccurrenceWithEvent>>, entry| {
+                    acc.entry(entry.occurrence.start.date())
+                        .and_modify(|entries| entries.push(entry.clone()))
+                        .or_insert(vec![entry]);
+                    acc
+                },
+            )
     }
 }
 
