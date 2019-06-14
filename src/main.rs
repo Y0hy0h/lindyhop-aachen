@@ -112,7 +112,7 @@ fn html_from_occurrence(
     let maybe_location = locations.get(&occurrence.location_id);
 
     OccurrenceHtml {
-        time: html! {(occurrence.start.format("%H:%M")) small { " bis " (occurrence.end().format("%H:%M"))} },
+        time: html! {(occurrence.start.format("%H:%M")) " bis " (occurrence.end().format("%H:%M"))},
         location: html! { @match maybe_location {
                 Some(location) => (location.name),
                 None => "Steht noch nicht fest."
