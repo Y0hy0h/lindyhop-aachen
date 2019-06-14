@@ -1,5 +1,44 @@
-$font-stack:    Helvetica, sans-serif;
+@import 'events';
+@import 'colors';
+
+$font-stack: Helvetica, sans-serif;
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  hyphens: auto;
+}
 
 body {
   font: 100% $font-stack;
+  color: $color_black;
+
+  background-color: $color_background;
+}
+
+main {
+  padding: 0 0.5em;
+  padding-bottom: 0.5em;
+  margin: 0 auto;
+}
+
+header {
+  color: $color_white;
+  background-color: $color_primary;
+
+  padding: 1em;
+  margin-bottom: 1em;
+
+  box-shadow: 0 0.2em 0.4em rgba(0, 0, 0, 0.2);
+
+  h1 {
+    margin: 0;
+  }
+}
+
+h1 {
+  hyphens: none;
 }

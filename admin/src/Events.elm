@@ -36,7 +36,7 @@ import Utils.NaiveDateTime as Naive exposing (DateTime, Duration)
 
 
 type alias Event =
-    { name : String
+    { title : String
     , teaser : String
     , description : String
     , occurrences : List Occurrence
@@ -277,7 +277,7 @@ decodeEvent : IdDict Location -> Decode.Decoder Event
 decodeEvent locs =
     Decode.map2
         (\eventData occurrences ->
-            { name = eventData.name
+            { title = eventData.title
             , teaser = eventData.teaser
             , description = eventData.description
             , occurrences = occurrences
@@ -285,13 +285,13 @@ decodeEvent locs =
         )
         (Decode.field "event"
             (Decode.map3
-                (\name teaser description ->
-                    { name = name
+                (\title teaser description ->
+                    { title = title
                     , teaser = teaser
                     , description = description
                     }
                 )
-                (Decode.field "name" Decode.string)
+                (Decode.field "title" Decode.string)
                 (Decode.field "teaser" Decode.string)
                 (Decode.field "description" Decode.string)
             )
@@ -334,7 +334,7 @@ encodeEvent event =
     Encode.object
         [ ( "event"
           , Encode.object
-                [ ( "name", Encode.string event.name )
+                [ ( "title", Encode.string event.title )
                 , ( "teaser", Encode.string event.teaser )
                 , ( "description", Encode.string event.description )
                 ]

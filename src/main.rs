@@ -25,30 +25,35 @@ use store::{EventWithOccurrences, Overview, Store};
 fn index(store: Store) -> Markup {
     html! {
         ( DOCTYPE )
-        html {
+        html lang="de" {
             head {
                 link href="static/main.css" rel="stylesheet";
             }
             body {
-                h1 { "Lindy Hop Aachen" }
-                @let Overview {locations, events} = store.read_all();
-                ul {
-                    @for EventWithOccurrences {event, occurrences} in events.values() {
-                        li {
-                            (event.name)
-                            ul {
-                                @for occurrence in occurrences {
-                                    li { (format_date(&occurrence.start.date())) }
-                                }
-                            }
+                header {
+                    h1 { "Lindy Hop Aachen" }
+                }
+                main {
+                    ol.schedule {
+                        @for entry in store.occurrences_by_date() {
+                            li { ( render_entry(&entry, &store.locations) ) }
                         }
                     }
                 }
-                ul {
-                    @for location in locations.values() {
-                        li { ( location.name ) }
-                    }
-                }
+            }
+        }
+    }
+}
+
+fn render_entry(
+    (date, entries): &(NaiveDate, Vec<(&Occurrence, &Event)>),
+    locations: &Locations,
+) -> Markup {
+    html! {
+        div.date { ( format_date(date) ) }
+        ol.events {
+            @for occurrence_entry in entries {
+                li.event { ( render_occurrence(occurrence_entry, locations) ) }
             }
         }
     }
@@ -69,6 +74,50 @@ fn format_date(date: &NaiveDate) -> String {
     let format = format!("{}, %d.%m.", day);
 
     date.format(&format).to_string()
+}
+
+fn render_occurrence((occurrence, event): &(&Occurrence, &Event), locations: &Locations) -> Markup {
+    html! {
+        @let entry =  html_from_occurrence(occurrence, event, locations);
+        h2.title { ( entry.title )}
+        div.content {
+            ul.quick-info {
+                li.time { ( entry.time ) }
+                li.location { ( entry.location ) }
+            }
+            div.description {
+                div.teaser { ( entry.teaser ) }
+            }
+        }
+    }
+}
+
+struct OccurrenceHtml {
+    time: Markup,
+    location: Markup,
+    title: Markup,
+    teaser: Markup,
+}
+
+fn html_from_occurrence(
+    occurrence: &Occurrence,
+    event: &Event,
+    locations: &Locations,
+) -> OccurrenceHtml {
+    let maybe_location = locations
+        .validate(occurrence.location_id)
+        .map(|id| locations.get(&id));
+
+    OccurrenceHtml {
+        time: html! {(occurrence.start.format("%H:%M")) small { " bis " (occurrence.end().format("%H:%M"))} },
+        location: html! { @match maybe_location {
+                Some(location) => (location.name),
+                None => "Steht noch nicht fest."
+                }
+        },
+        title: html! { (event.title) },
+        teaser: html! { (event.teaser) },
+    }
 }
 
 #[get("/admin")]

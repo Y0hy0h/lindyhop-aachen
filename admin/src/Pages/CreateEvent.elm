@@ -71,7 +71,7 @@ fromEvents : Browser.Key -> Events.Store -> Model
 fromEvents key store =
     let
         inputs =
-            { name = Utils.inputString ""
+            { title = Utils.inputString ""
             , teaser = Utils.inputString ""
             , description = Utils.inputString ""
             , occurrences = []
