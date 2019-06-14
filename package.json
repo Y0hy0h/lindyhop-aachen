@@ -8,6 +8,7 @@
     },
     "scripts": {
         "build": "npm run compile:admin && npm run compile:scss && npm run compile:server",
+        "build:node": "npm run compile:admin && npm run compile:scss",
         "compile:server": "cargo build",
         "compile:admin": "(cd admin && elm make --optimize --output=dist/index.html src/Main.elm)",
         "compile:scss": "sass styles:static",
