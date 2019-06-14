@@ -1,0 +1,42 @@
+FROM node:lts AS node
+WORKDIR /node
+# Cache compiled dependencies (inspired by http://whitfin.io/speeding-up-rust-docker-builds/)
+COPY ./package.json ./package.json
+RUN npm install
+COPY ./admin/elm.json ./admin/elm.json
+RUN mkdir ./admin/src && echo "import Html\nmain = Html.text \"Hello World\"" >> ./admin/src/Main.elm
+RUN npm run compile:admin
+RUN rm -r ./admin/src
+# Actual build
+COPY ./styles ./styles
+COPY ./admin/src ./admin/src
+RUN npm run build:node
+
+FROM rust:latest AS rust
+RUN rustup toolchain install nightly-2019-03-23 && rustup default nightly-2019-03-23
+# Cache compiled dependencies (see http://whitfin.io/speeding-up-rust-docker-builds/)
+WORKDIR /
+RUN USER=root cargo new lindyhop-aachen --bin
+WORKDIR /lindyhop-aachen
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+RUN cargo build --release
+RUN rm ./target/release/deps/lindyhop_aachen*
+RUN rm -r ./src
+# Actual build
+COPY ./src ./src
+COPY ./migrations ./migrations
+COPY ./Rocket.toml ./Rocket.toml
+RUN cargo build --release
+RUN cargo install diesel_cli --no-default-features --features "sqlite-bundled"
+RUN mkdir ./db
+RUN diesel setup --database-url ./db/db.sqlite
+
+FROM rust:slim
+WORKDIR /lindyhop-aachen
+COPY --from=node /node/static ./static
+COPY --from=node /node/admin/dist ./admin/dist
+COPY --from=rust /lindyhop-aachen/target/release/lindyhop-aachen ./lindyhop-aachen
+COPY --from=rust /lindyhop-aachen/db/db.sqlite ./db/db.sqlite
+COPY --from=rust /lindyhop-aachen/Rocket.toml ./Rocket.toml
+CMD [ "./lindyhop-aachen" ]

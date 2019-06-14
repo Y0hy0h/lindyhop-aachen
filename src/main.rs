@@ -1,109 +1,160 @@
-#![feature(proc_macro_hygiene, decl_macro)]
+#![feature(proc_macro_hygiene, decl_macro, custom_attribute)]
 
-mod events;
+mod store;
 
 #[macro_use]
 extern crate rocket;
-use rocket::State;
+#[macro_use]
+extern crate rocket_contrib;
+#[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 
+use rocket::response::NamedFile;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+
+use chrono::prelude::*;
+use maud::{html, Markup, DOCTYPE};
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
-use events::{Event, Location, Occurrence};
-
-use chrono::prelude::*;
-
-use maud::{html, Markup};
+use store::action::Actions;
+use store::{Event, Id, Location, Occurrence, OccurrenceWithEvent, Overview, Store};
 
 #[get("/")]
-fn index(events: State<Events>) -> Markup {
+fn index(store: Store) -> Markup {
     html! {
-        h1 { "Lindy Hop Aachen" }
-        ol {
-            @for event in &events.0 {
-                li { ( render_event(event) ) }
+        ( DOCTYPE )
+        html lang="de" {
+            head {
+                link href="static/main.css" rel="stylesheet";
+            }
+            body {
+                header {
+                    h1 { "Lindy Hop Aachen" }
+                }
+                main {
+                    ol.schedule {
+                        @let locations: HashMap<Id, Location> = store.all();
+                        @for occurrences_for_date in store.occurrences_by_date() {
+                            li { ( render_entry(&occurrences_for_date, &locations) ) }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-fn render_event(event: &Event) -> Markup {
+fn render_entry(
+    (date, entries): &(NaiveDate, Vec<OccurrenceWithEvent>),
+    locations: &HashMap<Id, Location>,
+) -> Markup {
     html! {
-        (event.name) " - " (event.teaser) ": " (event.occurrences.get(0).unwrap().location.name)
+        div.date { ( format_date(date) ) }
+        ol.events {
+            @for occurrence_entry in entries {
+                li.event { ( render_occurrence(occurrence_entry, locations) ) }
+            }
+        }
     }
 }
 
-#[get("/api/events")]
-fn read_events<'a>(events: State<'a, Events>) -> Json<&'a Vec<Event<'a>>> {
-    Json(&events.inner().0)
+fn format_date(date: &NaiveDate) -> String {
+    use chrono::Weekday::*;
+
+    let day = match date.weekday() {
+        Mon => "Mo",
+        Tue => "Di",
+        Wed => "Mi",
+        Thu => "Do",
+        Fri => "Fr",
+        Sat => "Sa",
+        Sun => "So",
+    };
+    let format = format!("{}, %d.%m.", day);
+
+    date.format(&format).to_string()
 }
 
-struct Events<'a>(Vec<Event<'a>>);
+fn render_occurrence(entry: &OccurrenceWithEvent, locations: &HashMap<Id, Location>) -> Markup {
+    html! {
+        @let entry_html =  html_from_occurrence(&entry.occurrence, &entry.event, locations);
+        h2.title { ( entry_html.title )}
+        div.content {
+            ul.quick-info {
+                li.time { ( entry_html.time ) }
+                li.location { ( entry_html.location ) }
+            }
+            div.description {
+                div.teaser { ( entry_html.teaser ) }
+            }
+        }
+    }
+}
 
-const CHICO: Location = Location {
-    name: "Chico Mendès",
-    address: "Aachen",
-};
+struct OccurrenceHtml {
+    time: Markup,
+    location: Markup,
+    title: Markup,
+    teaser: Markup,
+}
 
-const SENCILLITO: Location = Location {
-    name: "Sencillito",
-    address: "Aachen",
-};
+fn html_from_occurrence(
+    occurrence: &Occurrence,
+    event: &Event,
+    locations: &HashMap<Id, Location>,
+) -> OccurrenceHtml {
+    let maybe_location = locations.get(&occurrence.location_id);
+
+    OccurrenceHtml {
+        time: html! {(occurrence.start.format("%H:%M")) small { " bis " (occurrence.end().format("%H:%M"))} },
+        location: html! { @match maybe_location {
+                Some(location) => (location.name),
+                None => "Steht noch nicht fest."
+                }
+        },
+        title: html! { (event.title) },
+        teaser: html! { (event.teaser) },
+    }
+}
+
+#[get("/admin")]
+fn admin_route() -> Option<NamedFile> {
+    admin()
+}
+
+// We also want to serve the file when subroutes are called, e. g. `/admin/event/42`.
+// Removing this would break reloading the admin on subroutes.
+#[get("/admin/<path..>")]
+#[allow(unused_variables)]
+fn admin_subroute(path: PathBuf) -> Option<NamedFile> {
+    admin()
+}
+
+fn admin() -> Option<NamedFile> {
+    NamedFile::open(Path::new("admin/dist/index.html")).ok()
+}
+
+#[get("/")]
+fn api_overview(store: Store) -> Json<Overview> {
+    Json(store.read_all())
+}
 
 fn main() {
+    use store::routes::*;
+
     rocket::ignite()
-        .manage(Events(vec![
-            Event {
-                name: "Social Dance",
-                teaser: "Einfach tanzen.",
-                description: "Lindy Hop tanzen in einer Bar.",
-                occurrences: vec![
-                    Occurrence {
-                        start: Local
-                            .ymd(2019, 4, 1)
-                            .and_hms(20, 30, 00)
-                            .with_timezone(&Utc),
-                        duration: 90,
-                        location: &CHICO,
-                    },
-                    Occurrence {
-                        start: Local
-                            .ymd(2019, 4, 8)
-                            .and_hms(20, 30, 00)
-                            .with_timezone(&Utc),
-                        duration: 90,
-                        location: &SENCILLITO,
-                    },
-                ],
-            },
-            Event {
-                name: "Anfängerkurs",
-                teaser: "Hereinschnuppern.",
-                description: "Ein Einführung für diejenigen, die noch nie Lindy Hop getanzt haben.",
-                occurrences: vec![
-                    Occurrence {
-                        start: Local
-                            .ymd(2019, 4, 1)
-                            .and_hms(19, 45, 00)
-                            .with_timezone(&Utc),
-                        duration: 45,
-                        location: &CHICO,
-                    },
-                    Occurrence {
-                        start: Local
-                            .ymd(2019, 4, 8)
-                            .and_hms(20, 30, 00)
-                            .with_timezone(&Utc),
-                        duration: 90,
-                        location: &SENCILLITO,
-                    },
-                ],
-            },
-        ]))
-        .mount("/admin", {
-            let path = concat!(env!("CARGO_MANIFEST_DIR"), "/admin/dist");
-            StaticFiles::from(path)
-        })
-        .mount("/", routes![index, read_events])
+        .attach(Store::fairing())
+        .mount(
+            "/static",
+            StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")),
+        )
+        .mount("/", routes![index, admin_route, admin_subroute])
+        .mount("/api", routes![api_overview])
+        .mount("/api/events/", event_with_occurrences::routes())
+        .mount("/api/locations/", location::routes())
         .launch();
 }

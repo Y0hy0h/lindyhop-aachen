@@ -1,0 +1,10 @@
+target/
+
+admin/node_modules/
+admin/elm-stuff/
+admin/dist/
+
+db/
+static/
+
+spec/

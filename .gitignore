@@ -1,5 +1,7 @@
-/target
-**/*.rs.bk
+node_modules/
 
-# Databases
-/count.db
+static/
+db/
+
+target/
+**/*.rs.bk
