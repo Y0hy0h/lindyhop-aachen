@@ -84,9 +84,10 @@ fn format_date(date: &NaiveDate) -> String {
 fn render_occurrence(entry: &OccurrenceWithEvent, locations: &HashMap<Id, Location>) -> Markup {
     html! {
         @let entry_html =  html_from_occurrence(&entry.occurrence, &entry.event, locations);
-        h2.title { ( entry_html.title )}
+        div.quick-info { ( entry_html.quick_info ) }
+        h2.title { ( entry_html.title ) }
         div.content {
-            ul.quick-info {
+            ul.info {
                 li.time { ( entry_html.time ) }
                 li.location { ( entry_html.location ) }
             }
@@ -98,9 +99,10 @@ fn render_occurrence(entry: &OccurrenceWithEvent, locations: &HashMap<Id, Locati
 }
 
 struct OccurrenceHtml {
+    title: Markup,
+    quick_info: Markup,
     time: Markup,
     location: Markup,
-    title: Markup,
     teaser: Markup,
 }
 
@@ -110,16 +112,17 @@ fn html_from_occurrence(
     locations: &HashMap<Id, Location>,
 ) -> OccurrenceHtml {
     let maybe_location = locations.get(&occurrence.location_id);
+    let location_name = match maybe_location {
+        Some(location) => &location.name,
+        None => "Steht noch nicht fest.",
+    };
 
     OccurrenceHtml {
-        time: html! {(occurrence.start.format("%H:%M")) " bis " (occurrence.end().format("%H:%M"))},
-        location: html! { @match maybe_location {
-                Some(location) => (location.name),
-                None => "Steht noch nicht fest."
-                }
-        },
-        title: html! { (event.title) },
-        teaser: html! { (event.teaser) },
+        title: html! { ( event.title ) },
+        quick_info: html! { ( format!("{} - {}", occurrence.start.format("%H:%M"), location_name) ) },
+        time: html! { ( occurrence.start.format("%H:%M")) " bis " (occurrence.end().format("%H:%M") ) },
+        location: html! { ( location_name ) },
+        teaser: html! { ( event.teaser ) },
     }
 }
 
