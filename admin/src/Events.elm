@@ -283,7 +283,7 @@ decodeEvent locs =
             , occurrences = occurrences
             }
         )
-        (Decode.index 0
+        (Decode.field "event"
             (Decode.map3
                 (\name teaser description ->
                     { name = name
@@ -296,7 +296,7 @@ decodeEvent locs =
                 (Decode.field "description" Decode.string)
             )
         )
-        (Decode.index 1 (Decode.list (decodeOccurrence locs)))
+        (Decode.field "occurrences" (Decode.list (decodeOccurrence locs)))
 
 
 decodeOccurrence : IdDict Location -> Decode.Decoder Occurrence
@@ -332,9 +332,13 @@ decodeLocation =
 encodeEvent : Event -> Encode.Value
 encodeEvent event =
     Encode.object
-        [ ( "name", Encode.string event.name )
-        , ( "teaser", Encode.string event.teaser )
-        , ( "description", Encode.string event.description )
+        [ ( "event"
+          , Encode.object
+                [ ( "name", Encode.string event.name )
+                , ( "teaser", Encode.string event.teaser )
+                , ( "description", Encode.string event.description )
+                ]
+          )
         , ( "occurrences", Encode.list encodeOccurrence event.occurrences )
         ]
 
