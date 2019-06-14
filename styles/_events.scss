@@ -12,44 +12,47 @@ ol.schedule {
         margin: 0;
     }
 
-    display: flex;
-    flex-direction: column;
-    max-width: 30em;
+    max-width: 30rem;
     margin: 0 auto;
+    padding: 0.5rem;
 
     > li + li {
-        margin-top: 1.5em;
+        margin-top: 1.5rem;
     }
+
+    $item_spacing: 0.5rem;
 
     > li {
         display: flex;
         flex-wrap: wrap;
+
+        margin: -$item_spacing;
+
+        > * {
+            margin: $item_spacing;
+        }
     }
 
     .date {
         position: sticky;
-        top: 0;
-
+        top: 0.5rem;
         align-self: flex-start;
-        margin-right: 0.5em;
-        margin-bottom: 0.5em;
         width: 5.5em;
 
-        font-size: 110%;
         color: $color_white;
         background-color: $color_primary;
-        border-radius: 0.2em;
+        border-radius: 0.2rem;
         
-        padding: 0.3em;
-        box-shadow: 0.05em 0.05em 0.2em rgba(0, 0, 0, 0.2);
+        padding: 0.3rem 0.4rem;
+        box-shadow: 0.05rem 0.05rem 0.2rem rgba(0, 0, 0, 0.2);
     }
 
     .events {
-        flex: 20em;
+        flex: 20rem;
 
         display: grid;
         grid-template-columns: auto;
-        grid-row-gap: 0.5em;
+        grid-row-gap: 0.5rem;
     }
 
     .event {
@@ -57,43 +60,30 @@ ol.schedule {
         flex-direction: column;
 
         background-color: $color_card_background;
-        border-radius: 0.3em;
+        border-radius: 0.3rem;
 
-        padding: 0.5em;
-        box-shadow: 0.1em 0.1em 0.3em rgba(0, 0, 0, 0.2);
+        padding: 0.5rem;
+        box-shadow: 0.1rem 0.1rem 0.3rem rgba(0, 0, 0, 0.2);
+
+        .quick-info {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: normal;
+            font-size: 110%;
+            color: $color_primary;
+        }
 
         h2.title {
             font-size: 150%;
             color: $color_primary;
             margin: 0;
-            margin-bottom: 0.5em;
+            margin-bottom: 0.5rem;
+
         }
 
         .content {
             display: grid;
-            grid-gap: 0.5em;
-            grid-template-columns: repeat(auto-fit, minmax(8em, max-content));
-
-            font-size: 110%;
-        }
-
-        .quick-info {
-            padding: 0.2em;
-            color: $color_accent;
-            border: 0.1em solid $color_light_accent;
-            border-radius: 0.5em;
-            box-shadow: inset 0 0 0.1em rgba(0, 0, 0, 0.2);
-
-            .time::before {
-                content: "🕙";
-            }
-
-            .location::before {
-                content: "🗺️";
-            }
-        }
-
-        .description {
+            grid-gap: 0.5rem;
+            grid-template-columns: auto;
         }
     }
 }
