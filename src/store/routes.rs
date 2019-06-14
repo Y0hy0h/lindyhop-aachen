@@ -5,6 +5,7 @@ macro_rules! derive_routes {
             use std::iter::FromIterator;
 
             use crate::store::action::Actions;
+            #[allow(unused_imports)]
             use crate::store::{Event, EventWithOccurrences, Id, Location, Occurrence, Store};
 
             use rocket::Route;
@@ -53,7 +54,5 @@ macro_rules! derive_routes {
     };
 }
 
-derive_routes!(event, Event);
-derive_routes!(occurrence, Occurrence);
 derive_routes!(location, Location);
 derive_routes!(event_with_occurrences, EventWithOccurrences);

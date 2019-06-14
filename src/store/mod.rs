@@ -4,7 +4,6 @@ pub mod action;
 pub mod routes;
 
 use std::collections::HashMap;
-use std::iter::FromIterator;
 
 use chrono::NaiveDateTime;
 use rocket::request::{FromRequest, Outcome, Request};
@@ -29,7 +28,6 @@ pub struct Event {
 pub struct Occurrence {
     pub start: NaiveDateTime,
     pub duration: Duration,
-    pub event_id: Id,
     pub location_id: Id,
 }
 
@@ -55,20 +53,13 @@ mod event_actions {
     derive_actions!(Event, SqlEvent);
 }
 
-mod occurrence_actions {
-    use super::db::schema::occurrences::{dsl::occurrences as schema, table};
-    use super::*;
-
-    derive_actions!(Occurrence, SqlOccurrence);
-}
-
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Overview {
     pub locations: HashMap<Id, Location>,
     pub events: HashMap<Id, EventWithOccurrences>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct EventWithOccurrences {
     pub event: Event,
     pub occurrences: Vec<Occurrence>,
@@ -141,7 +132,7 @@ impl Actions<EventWithOccurrences> for Store {
         let sql_occurrences: Vec<SqlOccurrence> = item
             .occurrences
             .into_iter()
-            .map(|occurrence| occurrence.into())
+            .map(|occurrence| (occurrence, sql_event.id.clone()).into())
             .collect();
         diesel::insert_into(occurrences)
             .values(&sql_occurrences)
@@ -181,10 +172,10 @@ impl Actions<EventWithOccurrences> for Store {
 
         let raw_id: SqlId = item_id.into();
         use db::schema::events::dsl::events;
-        let sql_previous = events.find(raw_id).first::<SqlEvent>(&*self.0)?;
+        let sql_previous = events.find(raw_id.clone()).first::<SqlEvent>(&*self.0)?;
 
         let associated_occurrences = SqlOccurrence::belonging_to(&sql_previous);
-        let occurrences: Vec<Occurrence> = associated_occurrences
+        let previous_occurrences: Vec<Occurrence> = associated_occurrences
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
             .map(|sql_occurrence| {
@@ -194,17 +185,28 @@ impl Actions<EventWithOccurrences> for Store {
             })
             .collect();
 
-        diesel::delete(associated_occurrences).execute(&*self.0);
+        diesel::delete(associated_occurrences).execute(&*self.0)?;
 
         let new_sql_item: SqlEvent = new_item.event.into();
         diesel::update(&sql_previous)
             .set(new_sql_item)
-            .execute(&*self.0);
+            .execute(&*self.0)?;
+
+        use db::schema::occurrences::dsl::occurrences as occurrences_table;
+        let sql_occurrences: Vec<SqlOccurrence> = new_item
+            .occurrences
+            .into_iter()
+            .map(|occurrence| (occurrence, raw_id.clone()).into())
+            .collect();
+        print!("{:?}", sql_occurrences);
+        diesel::insert_into(occurrences_table)
+            .values(&sql_occurrences)
+            .execute(&*self.0)?;
 
         let (_, previous) = sql_previous.into();
         Ok(EventWithOccurrences {
             event: previous,
-            occurrences,
+            occurrences: previous_occurrences,
         })
     }
 
@@ -233,7 +235,9 @@ impl Actions<EventWithOccurrences> for Store {
             return Err(DeleteError::Dependency(occurrences));
         }
 
-        diesel::delete(&sql_previous).execute(&*self.0);
+        diesel::delete(&sql_previous)
+            .execute(&*self.0)
+            .map_err(DeleteError::DieselError)?;
 
         let (_, previous) = sql_previous.into();
         Ok(EventWithOccurrences {

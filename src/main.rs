@@ -12,9 +12,6 @@ extern crate diesel;
 extern crate diesel_migrations;
 
 use rocket::response::NamedFile;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 
 use chrono::prelude::*;
