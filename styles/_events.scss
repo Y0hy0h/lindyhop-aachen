@@ -37,12 +37,13 @@ ol.schedule {
         position: sticky;
         top: 0.5rem;
         align-self: flex-start;
+        width: 5.5em;
 
         color: $color_white;
         background-color: $color_primary;
         border-radius: 0.2rem;
         
-        padding: 0.3rem;
+        padding: 0.3rem 0.4rem;
         box-shadow: 0.05rem 0.05rem 0.2rem rgba(0, 0, 0, 0.2);
     }
 
@@ -69,8 +70,6 @@ ol.schedule {
             font-weight: normal;
             font-size: 110%;
             color: $color_primary;
-
-            margin-right: 0.5rem;
         }
 
         h2.title {
