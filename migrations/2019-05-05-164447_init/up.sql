@@ -1,6 +1,6 @@
 CREATE TABLE events (
     id BINARY(128) PRIMARY KEY NOT NULL,
-    name VARCHAR NOT NULL,
+    title VARCHAR NOT NULL,
     teaser VARCHAR NOT NULL,
     description VARCHAR NOT NULL
 );

@@ -19,7 +19,7 @@ use action::Actions;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
-    pub name: String,
+    pub title: String,
     pub teaser: String,
     pub description: String,
 }

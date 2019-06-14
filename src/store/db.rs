@@ -26,7 +26,7 @@ pub mod schema {
     table! {
         events {
             id -> Binary,
-            name -> Text,
+            title -> Text,
             teaser -> Text,
             description -> Text,
         }
@@ -137,7 +137,7 @@ impl Eq for SqlId {}
 #[table_name = "events"]
 pub struct SqlEvent {
     pub id: SqlId,
-    pub name: String,
+    pub title: String,
     pub teaser: String,
     pub description: String,
 }
@@ -147,7 +147,7 @@ impl From<SqlEvent> for (super::Id, Event) {
         (
             event.id.0,
             Event {
-                name: event.name,
+                title: event.title,
                 teaser: event.teaser,
                 description: event.description,
             },
@@ -161,7 +161,7 @@ impl From<Event> for SqlEvent {
 
         SqlEvent {
             id: SqlId(id),
-            name: event.name,
+            title: event.title,
             teaser: event.teaser,
             description: event.description,
         }

@@ -116,7 +116,7 @@ fn html_from_occurrence(
                 None => "Steht noch nicht fest."
                 }
         },
-        title: html! { (event.name) },
+        title: html! { (event.title) },
         teaser: html! { (event.teaser) },
     }
 }
