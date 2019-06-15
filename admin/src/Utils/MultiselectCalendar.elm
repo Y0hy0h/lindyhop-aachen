@@ -250,13 +250,13 @@ viewDates model =
                 , text (formatMonth model.month)
                 ]
             , button
-                [ css [ navButtonStyle, iconButtonStyle "svg/arrow-up.svg" ]
+                [ css [ navButtonStyle ]
                 , onClick (MonthActionMsg PreviousMonth)
                 ]
                 [ text "Vorheriger Monat" ]
             , viewCalendar model
             , button
-                [ css [ navButtonStyle, iconButtonStyle "svg/arrow-down.svg" ]
+                [ css [ navButtonStyle ]
                 , onClick (MonthActionMsg NextMonth)
                 ]
                 [ text "Nächster Monat" ]
@@ -324,18 +324,6 @@ button attributes contents =
                ]
         )
         contents
-
-
-iconButtonStyle : String -> Css.Style
-iconButtonStyle url =
-    Css.batch
-        [ Css.backgroundImage (Css.url url)
-        , Css.backgroundRepeat Css.noRepeat
-        , Css.backgroundPosition Css.center
-        , Css.backgroundSize Css.contain
-        , Css.fontSize (em 0)
-        , Css.minHeight (rem 1.5)
-        ]
 
 
 viewCalendar : DatesModel -> Html DatesMsg
@@ -448,21 +436,13 @@ viewDatesList currentInput dates =
                     , Css.alignItems Css.center
                     ]
                 ]
-                [ button
-                    [ css
-                        [ iconButtonStyle "svg/calendar.svg"
-                        , Css.width (rem 2)
-                        ]
-                    , onClick (GoToDate date)
-                    ]
-                    [ text "Zeige Datum im Kalender" ]
-                , text (Date.format "dd.MM.yyyy" date)
+                [ text (Date.format "dd.MM.yyyy" date)
                 , button
-                    [ css
-                        [ iconButtonStyle "svg/delete.svg"
-                        , Css.width (rem 2)
-                        ]
-                    , onClick (CombinedActionMsg (Remove date) Nothing)
+                    [ onClick (GoToDate date)
+                    ]
+                    [ text "Zeigen" ]
+                , button
+                    [ onClick (CombinedActionMsg (Remove date) Nothing)
                     ]
                     [ text "Löschen" ]
                 ]
@@ -477,18 +457,15 @@ viewDatesList currentInput dates =
             ]
             [ input [ type_ "date", onInput DateInputChanged, value currentInput ] []
             , Html.button
-                [ css
-                    [ iconButtonStyle "svg/add.svg"
-                    , Css.width (rem 2)
-                    ]
-                , type_ "submit"
+                [ type_ "submit"
                 ]
                 [ text "Datum hinzufügen" ]
             ]
         , ul
             [ css
-                [ Css.height (pct 100)
+                [ Css.height (em 18)
                 , Css.overflow Css.auto
+                , Css.padding zero
                 ]
             ]
             (List.map viewDateListItem dates)
