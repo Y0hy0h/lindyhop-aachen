@@ -1,8 +1,9 @@
 module Utils.MultiselectCalendar exposing (Model, Msg, init, selected, update, view)
 
+import Css exposing (em, flexStart, pct, px, rem, row, zero)
 import Date exposing (Date)
 import Html.Styled as Html exposing (Html, a, button, div, form, input, li, table, tbody, td, text, th, thead, tr, ul)
-import Html.Styled.Attributes exposing (class, classList, type_, value)
+import Html.Styled.Attributes exposing (css, type_, value)
 import Html.Styled.Events exposing (onClick, onInput, onSubmit)
 import Json.Encode as Encode
 import List.Extra as List
@@ -220,24 +221,42 @@ view model =
 
 viewDates : DatesModel -> Html DatesMsg
 viewDates model =
-    div [ class "calendar" ]
-        [ div [ class "container" ]
-            [ div [ class "calendar-header" ]
+    let
+        navButtonStyle =
+            Css.batch
+                [ Css.display Css.block
+                , Css.width (pct 100)
+                ]
+    in
+    div
+        [ css
+            [ Css.property "display" "inline-grid"
+            , Css.property "grid-template-columns" "auto auto"
+            , Css.property "grid-gap" "1em"
+            ]
+        ]
+        [ div [ css [ Css.display Css.inlineBlock ] ]
+            [ div
+                [ css
+                    [ Css.displayFlex
+                    , Css.flexDirection Css.column
+                    , Css.paddingBottom (em 0.5)
+                    ]
+                ]
                 [ button
-                    [ class "today"
-                    , onClick GoToCurrentMonth
+                    [ onClick GoToCurrentMonth
                     ]
                     [ text "Jetziger Monat" ]
                 , text (formatMonth model.month)
                 ]
             , button
-                [ class "previous-month"
+                [ css [ navButtonStyle, iconButtonStyle "svg/arrow-up.svg" ]
                 , onClick (MonthActionMsg PreviousMonth)
                 ]
                 [ text "Vorheriger Monat" ]
             , viewCalendar model
             , button
-                [ class "next-month"
+                [ css [ navButtonStyle, iconButtonStyle "svg/arrow-down.svg" ]
                 , onClick (MonthActionMsg NextMonth)
                 ]
                 [ text "Nächster Monat" ]
@@ -295,7 +314,28 @@ formatMonth date =
 
 button : List (Html.Attribute DatesMsg) -> List (Html DatesMsg) -> Html DatesMsg
 button attributes contents =
-    Html.button (attributes ++ [ type_ "button" ]) contents
+    Html.button
+        (attributes
+            ++ [ type_ "button"
+               , css
+                    [ Css.border3 (px 1) Css.solid (Css.rgb 0 0 0)
+                    , Css.hover [ Css.property "filter" "brightness(90%)" ]
+                    ]
+               ]
+        )
+        contents
+
+
+iconButtonStyle : String -> Css.Style
+iconButtonStyle url =
+    Css.batch
+        [ Css.backgroundImage (Css.url url)
+        , Css.backgroundRepeat Css.noRepeat
+        , Css.backgroundPosition Css.center
+        , Css.backgroundSize Css.contain
+        , Css.fontSize (em 0)
+        , Css.minHeight (rem 1.5)
+        ]
 
 
 viewCalendar : DatesModel -> Html DatesMsg
@@ -345,16 +385,41 @@ viewCalendar model =
 viewCalendarDay : { today : Bool, selected : Bool } -> Calendar.CalendarDate -> Html DatesMsg
 viewCalendarDay is day =
     let
-        ( dayClass, dayDate, maybeMonthAction ) =
+        outsideStyle =
+            Css.color (Css.rgb 100 100 100)
+
+        ( dayStyle, dayDate, maybeMonthAction ) =
             case day of
                 Calendar.Previous date ->
-                    ( "previous", date, Just PreviousMonth )
+                    ( [ outsideStyle ], date, Just PreviousMonth )
 
                 Calendar.Current date ->
-                    ( "current", date, Nothing )
+                    ( [], date, Nothing )
 
                 Calendar.Next date ->
-                    ( "next", date, Just NextMonth )
+                    ( [ outsideStyle ], date, Just NextMonth )
+
+        todayStyle =
+            if is.today then
+                [ Css.textDecoration Css.underline ]
+
+            else
+                []
+
+        selectedStyle =
+            if is.selected then
+                [ Css.backgroundColor (Css.rgba 0 0 0 0.2) ]
+
+            else
+                []
+
+        tdStyle =
+            dayStyle
+                ++ todayStyle
+                ++ selectedStyle
+                ++ [ Css.textAlign Css.right
+                   , Css.border (em 0)
+                   ]
 
         dateAction =
             if is.selected then
@@ -364,11 +429,7 @@ viewCalendarDay is day =
                 Add dayDate
     in
     td
-        [ classList
-            [ ( dayClass, True )
-            , ( "today", is.today )
-            , ( "selected", is.selected )
-            ]
+        [ css tdStyle
         , onClick (CombinedActionMsg dateAction maybeMonthAction)
         ]
         [ text (String.fromInt <| Date.day dayDate)
@@ -379,16 +440,56 @@ viewDatesList : String -> List Date -> Html DatesMsg
 viewDatesList currentInput dates =
     let
         viewDateListItem date =
-            li []
-                [ button [ class "goto-date", onClick (GoToDate date) ] [ text "Zeige Datum im Kalender" ]
+            li
+                [ css
+                    [ Css.property "display" "grid"
+                    , Css.property "grid-template-columns" "repeat(3, auto)"
+                    , Css.property "grid-gap" "0.5em"
+                    , Css.alignItems Css.center
+                    ]
+                ]
+                [ button
+                    [ css
+                        [ iconButtonStyle "svg/calendar.svg"
+                        , Css.width (rem 2)
+                        ]
+                    , onClick (GoToDate date)
+                    ]
+                    [ text "Zeige Datum im Kalender" ]
                 , text (Date.format "dd.MM.yyyy" date)
-                , button [ class "remove-date", onClick (CombinedActionMsg (Remove date) Nothing) ] [ text "Löschen" ]
+                , button
+                    [ css
+                        [ iconButtonStyle "svg/delete.svg"
+                        , Css.width (rem 2)
+                        ]
+                    , onClick (CombinedActionMsg (Remove date) Nothing)
+                    ]
+                    [ text "Löschen" ]
                 ]
     in
-    div [ class "selected-list" ]
-        [ form [ onSubmit DateInputSubmitted ]
-            [ input [ type_ "date", onInput DateInputChanged, value currentInput ] []
-            , Html.button [ class "add-date", type_ "submit" ] [ text "Datum hinzufügen" ]
+    div []
+        [ form
+            [ css
+                [ Css.displayFlex
+                , Css.flexDirection Css.row
+                ]
+            , onSubmit DateInputSubmitted
             ]
-        , ul [] (List.map viewDateListItem dates)
+            [ input [ type_ "date", onInput DateInputChanged, value currentInput ] []
+            , Html.button
+                [ css
+                    [ iconButtonStyle "svg/add.svg"
+                    , Css.width (rem 2)
+                    ]
+                , type_ "submit"
+                ]
+                [ text "Datum hinzufügen" ]
+            ]
+        , ul
+            [ css
+                [ Css.height (pct 100)
+                , Css.overflow Css.auto
+                ]
+            ]
+            (List.map viewDateListItem dates)
         ]
