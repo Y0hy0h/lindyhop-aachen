@@ -49,7 +49,7 @@ import Utils.Validate as Validate exposing (Validator)
 
 type alias Model =
     { key : Browser.Key
-    , inputs : Edit.EventInput
+    , inputs : Edit.InputModel
     , locations : Locations
     }
 
@@ -67,34 +67,38 @@ init key =
     ( LoadModel key, fetchEvents )
 
 
-fromEvents : Browser.Key -> Events.Store -> Model
+fromEvents : Browser.Key -> Events.Store -> ( Model, Cmd Msg )
 fromEvents key store =
     let
-        inputs =
-            { title = Utils.inputString ""
-            , teaser = Utils.inputString ""
-            , description = Utils.inputString ""
-            , occurrences = []
-            }
-
         locations =
             Events.locations store
+
+        ( batchAddModel, batchAddMsg ) =
+            Edit.initBatchAddModel locations
+
+        inputs =
+            { eventInputs =
+                { title = Utils.inputString ""
+                , teaser = Utils.inputString ""
+                , description = Utils.inputString ""
+                , occurrences = []
+                }
+            , batchAdd = batchAddModel
+            }
     in
-    Model key inputs locations
+    ( Model key inputs locations, Cmd.map Input batchAddMsg )
 
 
 type LoadMsg
     = FetchedEvents (Result Http.Error Events.Store)
 
 
-updateLoad : LoadMsg -> LoadModel -> Result Http.Error Model
+updateLoad : LoadMsg -> LoadModel -> Result Http.Error ( Model, Cmd Msg )
 updateLoad msg model =
     case msg of
         FetchedEvents result ->
             Result.map
-                (\events ->
-                    fromEvents model.key events
-                )
+                    (fromEvents model.key )
                 result
 
 
@@ -113,7 +117,7 @@ update msg model =
         ClickedSave ->
             let
                 cmd =
-                    case Edit.eventFromInputs model.locations model.inputs of
+                    case Edit.eventFromInputs model.locations model.inputs.eventInputs of
                         Just event ->
                             Events.createEvent event SaveFinished
 

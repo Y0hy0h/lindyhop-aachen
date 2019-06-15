@@ -12,13 +12,16 @@ module Pages.Utils exposing
     , inputDateTime
     , inputString
     , labeled
+    , timeValidator
     , updateInput
     , validate
+    , dateValidator
     , viewDateTimeInput
     , viewInputNumber
     , viewInputText
     , viewSelection
     , viewTextArea
+    , viewTimeInput
     )
 
 import Css exposing (center, column, em, flexStart, none, row, zero)
@@ -132,15 +135,31 @@ dateTimeValidator =
         (\{ date, time } ->
             let
                 dateResult =
-                    Parser.run Naive.dateParser date |> Result.mapError (\err -> [ "Das Datum ist ungültig." ])
+                    Validate.validate dateValidator date
 
                 timeResult =
-                    Parser.run Naive.timeParser time |> Result.mapError (\err -> [ "Die Uhrzeit ist ungültig." ])
+                    Validate.validate timeValidator time
             in
             Validate.map2
                 Naive.with
                 dateResult
                 timeResult
+        )
+
+
+dateValidator : Validator String Naive.Date
+dateValidator =
+    Validate.from
+        (\raw ->
+            Parser.run Naive.dateParser raw |> Result.mapError (\err -> [ "Das Datum ist ungültig." ])
+        )
+
+
+timeValidator : Validator String Naive.Time
+timeValidator =
+    Validate.from
+        (\raw ->
+            Parser.run Naive.timeParser raw |> Result.mapError (\err -> [ "Die Uhrzeit ist ungültig." ])
         )
 
 
@@ -206,6 +225,15 @@ viewDateTimeInput lbl (Input { date, time } validator) toMsgs =
          , input [ type_ "time", value time, onInput toMsgs.timeChanged ] []
          ]
             ++ viewErrors (Input { date = date, time = time } validator)
+        )
+
+
+viewTimeInput : String -> In Naive.Time -> (String -> msg) -> Html msg
+viewTimeInput lbl (Input val validator) inputMsg =
+    labeled lbl
+        ([ input [ type_ "time", value val, onInput inputMsg ] []
+         ]
+            ++ viewErrors (Input val validator)
         )
 
 

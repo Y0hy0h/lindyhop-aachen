@@ -1,5 +1,7 @@
 module Pages.EditEvent exposing
-    ( EventInput
+    ( DisplayStatus(..)
+    , EventInput
+    , InputModel
     , InputMsg
     , LoadError(..)
     , LoadModel
@@ -7,8 +9,8 @@ module Pages.EditEvent exposing
     , Model
     , Msg
     , eventFromInputs
-    , fromEvents
     , init
+    , initBatchAddModel
     , update
     , updateInputs
     , updateLoad
@@ -18,6 +20,7 @@ module Pages.EditEvent exposing
 
 import Css exposing (em, flexStart, row, zero)
 import Css.Global as Css
+import Date exposing (Date)
 import Events exposing (Event, Location, Locations, Occurrence)
 import Html.Styled as Html exposing (Html, a, div, h2, input, label, li, ol, p, text, textarea)
 import Html.Styled.Attributes exposing (css, href, type_, value)
@@ -41,10 +44,12 @@ import Pages.Utils as Utils
         , viewInputNumber
         , viewInputText
         , viewTextArea
+        , viewTimeInput
         )
 import Parser
 import Routes
 import Time
+import Utils.MultiselectCalendar as MultiselectCalendar
 import Utils.NaiveDateTime as Naive exposing (Duration)
 import Utils.TimeFormat as TimeFormat
 import Utils.Validate as Validate exposing (Validator)
@@ -53,8 +58,21 @@ import Utils.Validate as Validate exposing (Validator)
 type alias Model =
     { eventId : Id Event
     , event : Event
-    , inputs : EventInput
+    , inputs : InputModel
     , locations : Locations
+    }
+
+
+type alias InputModel =
+    { eventInputs : EventInput
+    , batchAdd : BatchAddModel
+    }
+
+
+type alias BatchAddModel =
+    { inputs : BatchOccurrenceInput
+    , dates : MultiselectCalendar.Model
+    , status : DisplayStatus
     }
 
 
@@ -66,10 +84,54 @@ type alias EventInput =
     }
 
 
+type DisplayStatus
+    = Shown
+    | Hidden
+
+
+toggle : DisplayStatus -> DisplayStatus
+toggle state =
+    case state of
+        Shown ->
+            Hidden
+
+        Hidden ->
+            Shown
+
+
 type alias OccurrenceInput =
     { start : Input { date : String, time : String } Naive.DateTime
     , duration : In Duration
     , locationId : In (Id Location)
+    }
+
+
+type alias BatchOccurrenceInput =
+    { start : In Naive.Time
+    , duration : In Duration
+    , locationId : In (Id Location)
+    }
+
+
+initBatchAddModel : Locations -> ( BatchAddModel, Cmd InputMsg )
+initBatchAddModel locations =
+    let
+        ( calendarModel, calendarMsg ) =
+            MultiselectCalendar.init []
+    in
+    ( { inputs = emptyBatchOccurrenceInput locations
+      , dates = calendarModel
+      , status = Hidden
+      }
+    , Cmd.map (InputBatchAdd << BatchMultiselectCalendarMsg) calendarMsg
+    )
+
+
+emptyBatchOccurrenceInput : Locations -> BatchOccurrenceInput
+emptyBatchOccurrenceInput locations =
+    { start = Utils.buildInput "" Utils.timeValidator
+    , duration = Utils.buildInput "" durationValidator
+    , locationId = Utils.buildInput "" (locationIdValidator locations)
     }
 
 
@@ -160,13 +222,13 @@ type alias LoadModel =
 init : String -> ( LoadModel, Cmd LoadMsg )
 init rawId =
     let
-        fetchEvents =
+        fetchEventsMsg =
             Events.fetchStore FetchedEvents
     in
-    ( LoadModel rawId, fetchEvents )
+    ( LoadModel rawId, fetchEventsMsg )
 
 
-fromEvents : String -> Events.Store -> Maybe Model
+fromEvents : String -> Events.Store -> Maybe ( Model, Cmd Msg )
 fromEvents rawId store =
     let
         events =
@@ -182,11 +244,32 @@ fromEvents rawId store =
                     event =
                         IdDict.get id events
 
-                    inputs =
-                        inputsFromEvent locations event
+                    ( inputModel, inputMsg ) =
+                        inputModelFromEvents locations event
+
+                    loadedModel =
+                        { eventId = id
+                        , event = event
+                        , locations = locations
+                        , inputs = inputModel
+                        }
                 in
-                Model id event inputs locations
+                ( loadedModel, Cmd.map Input inputMsg )
             )
+
+
+inputModelFromEvents : Locations -> Event -> ( InputModel, Cmd InputMsg )
+inputModelFromEvents locations event =
+    let
+        ( batchAddModel, batchAddMsg ) =
+            initBatchAddModel locations
+
+        model =
+            { eventInputs = inputsFromEvent locations event
+            , batchAdd = batchAddModel
+            }
+    in
+    ( model, batchAddMsg )
 
 
 type LoadMsg
@@ -198,7 +281,7 @@ type LoadError
     | InvalidId String
 
 
-updateLoad : LoadMsg -> LoadModel -> Result LoadError Model
+updateLoad : LoadMsg -> LoadModel -> Result LoadError ( Model, Cmd Msg )
 updateLoad msg model =
     case msg of
         FetchedEvents result ->
@@ -219,6 +302,11 @@ type Msg
 
 
 type InputMsg
+    = InputEvent EventMsg
+    | InputBatchAdd BatchAddMsg
+
+
+type EventMsg
     = InputName String
     | InputTeaser String
     | InputDescription String
@@ -234,6 +322,18 @@ type OccurrenceMsg
     | InputClickedDelete
 
 
+type BatchAddMsg
+    = ClickedBatchAdd
+    | BatchMultiselectCalendarMsg MultiselectCalendar.Msg
+    | BatchAddInputMsg BatchAddInputMsg
+
+
+type BatchAddInputMsg
+    = BatchInputStartTime String
+    | BatchInputDuration String
+    | BatchInputLocationId String
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -247,7 +347,7 @@ update msg model =
         ClickedSave ->
             let
                 cmd =
-                    case eventFromInputs model.locations model.inputs of
+                    case eventFromInputs model.locations model.inputs.eventInputs of
                         Just event ->
                             Events.updateEvent model.eventId event SaveFinished
 
@@ -266,8 +366,22 @@ update msg model =
             ( model, Cmd.none )
 
 
-updateInputs : Locations -> InputMsg -> EventInput -> EventInput
-updateInputs locations msg event =
+updateInputs : Locations -> InputMsg -> InputModel -> InputModel
+updateInputs locations msg inputs =
+    case msg of
+        InputEvent eventMsg ->
+            { inputs
+                | eventInputs = updateEventInputs locations eventMsg inputs.eventInputs
+            }
+
+        InputBatchAdd batchAddMsg ->
+            { inputs
+                | batchAdd = updateBatchAdd locations batchAddMsg inputs.batchAdd
+            }
+
+
+updateEventInputs : Locations -> EventMsg -> EventInput -> EventInput
+updateEventInputs locations msg event =
     let
         setInput new input =
             updateInput (\_ -> new) input
@@ -339,28 +453,39 @@ updateInputs locations msg event =
             { event | occurrences = newOccurrences }
 
 
-updateEvent : Model -> (EventInput -> EventInput) -> Model
-updateEvent model eventUpdater =
+updateBatchAdd : Locations -> BatchAddMsg -> BatchAddModel -> BatchAddModel
+updateBatchAdd locations msg model =
+    case msg of
+        ClickedBatchAdd ->
+            { model | status = toggle model.status }
+
+        BatchAddInputMsg batchMsg ->
+            case model.status of
+                Shown ->
+                    { model | inputs = updateBatchAddInput batchMsg model.inputs }
+
+                _ ->
+                    model
+
+        BatchMultiselectCalendarMsg calendarMsg ->
+            { model | dates = MultiselectCalendar.update calendarMsg model.dates }
+
+
+updateBatchAddInput : BatchAddInputMsg -> BatchOccurrenceInput -> BatchOccurrenceInput
+updateBatchAddInput msg input =
     let
-        newEvent =
-            eventUpdater model.inputs
+        setInput new inp =
+            updateInput (\_ -> new) inp
     in
-    { model | inputs = newEvent }
+    case msg of
+        BatchInputStartTime newStartTime ->
+            { input | start = setInput newStartTime input.start }
 
+        BatchInputDuration newDuration ->
+            { input | duration = setInput newDuration input.duration }
 
-updateOccurrences : Model -> (List OccurrenceInput -> List OccurrenceInput) -> Model
-updateOccurrences model occurrencesUpdater =
-    let
-        newOccurrences =
-            occurrencesUpdater model.inputs.occurrences
-
-        inputs =
-            model.inputs
-
-        newInputs =
-            { inputs | occurrences = newOccurrences }
-    in
-    { model | inputs = newInputs }
+        BatchInputLocationId newLocationId ->
+            { input | locationId = setInput newLocationId input.locationId }
 
 
 view : Model -> List (Html Msg)
@@ -384,28 +509,73 @@ view model =
            ]
 
 
-viewEditEvent : Locations -> EventInput -> List (Html InputMsg)
+viewEditEvent : Locations -> InputModel -> List (Html InputMsg)
 viewEditEvent locations inputs =
     [ fields
-        [ viewInputText "Titel" inputs.title InputName
-        , viewInputText "Teaser" inputs.teaser InputTeaser
-        , viewTextArea "Beschreibung" inputs.description InputDescription
+        [ viewInputText "Titel" inputs.eventInputs.title (InputEvent << InputName)
+        , viewInputText "Teaser" inputs.eventInputs.teaser (InputEvent << InputTeaser)
+        , viewTextArea "Beschreibung" inputs.eventInputs.description (InputEvent << InputDescription)
         ]
     , h2 [] [ text "Termine" ]
     , ol [ css [ spreadListItemStyle ] ]
         (List.indexedMap
             (\index occurrence ->
-                li [] [ viewEditOccurrence locations index occurrence ]
+                li [] [ viewEditOccurrence locations index occurrence |> Html.map InputEvent ]
             )
-            inputs.occurrences
-            ++ [ Utils.button "Neuer Termin" AddOccurrence ]
+            inputs.eventInputs.occurrences
+            ++ [ let
+                    batchAddLabel =
+                        case inputs.batchAdd.status of
+                            Shown ->
+                                "Mehrtermindialog schließen"
+
+                            Hidden ->
+                                "Mehrere Termine hinzufügen"
+                 in
+                 div [ css [ Css.marginTop (em 1) ] ]
+                    [ Utils.button "Neuer Termin" (InputEvent AddOccurrence)
+                    , Utils.button batchAddLabel (InputBatchAdd ClickedBatchAdd)
+                    ]
+               ]
+            ++ (case inputs.batchAdd.status of
+                    Shown ->
+                        [ Html.map InputBatchAdd <| div [] (viewBatchAdd locations inputs.batchAdd) ]
+
+                    _ ->
+                        []
+               )
+        )
+    ]
+
+
+viewBatchAdd : Locations -> BatchAddModel -> List (Html BatchAddMsg)
+viewBatchAdd locations input =
+    [ MultiselectCalendar.view input.dates |> Html.fromUnstyled |> Html.map BatchMultiselectCalendarMsg
+    , viewTimeInput "Beginn"
+        input.inputs.start
+        (BatchAddInputMsg << BatchInputStartTime)
+    , viewInputNumber "Dauer (in Minuten)" input.inputs.duration (BatchAddInputMsg << BatchInputDuration)
+    , let
+        options =
+            IdDict.map (\id location -> { name = location.name, value = IdDict.encodeIdForUrl id }) locations
+      in
+      div []
+        ([ Utils.viewSelection "Ort" input.inputs.locationId options (BatchAddInputMsg << BatchInputLocationId)
+         ]
+            ++ (case extract input.inputs.locationId of
+                    Just id ->
+                        [ a [ href <| Routes.toRelativeUrl <| Routes.EditLocation (IdDict.encodeIdForUrl id) ] [ text "Bearbeiten" ] ]
+
+                    Nothing ->
+                        []
+               )
         )
     ]
 
 
 changed : Model -> Bool
 changed model =
-    eventFromInputs model.locations model.inputs
+    eventFromInputs model.locations model.inputs.eventInputs
         |> Maybe.map (\newEvent -> newEvent /= model.event)
         |> Maybe.withDefault False
 
@@ -426,10 +596,10 @@ spreadListItemStyle =
         ]
 
 
-viewEditOccurrence : Locations -> Int -> OccurrenceInput -> Html InputMsg
+viewEditOccurrence : Locations -> Int -> OccurrenceInput -> Html EventMsg
 viewEditOccurrence locations index occurrence =
     let
-        occMsg : OccurrenceMsg -> InputMsg
+        occMsg : OccurrenceMsg -> EventMsg
         occMsg subMsg =
             InputOccurrence index subMsg
 

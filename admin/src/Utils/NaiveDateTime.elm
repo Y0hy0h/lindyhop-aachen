@@ -7,6 +7,7 @@ module Utils.NaiveDateTime exposing
     , build
     , buildDate
     , buildTime
+    , dateFromExternal
     , dateParser
     , dateTimeFuzzer
     , dateTimeParser
@@ -29,6 +30,7 @@ module Utils.NaiveDateTime exposing
     , year
     )
 
+import Date as External
 import Fuzz
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -178,6 +180,11 @@ minutes raw =
 
     else
         Nothing
+
+
+dateFromExternal : External.Date -> Date
+dateFromExternal external =
+    Date { year = External.year external, month = External.month external, day = External.day external }
 
 
 
