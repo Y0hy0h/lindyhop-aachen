@@ -550,7 +550,7 @@ viewEditEvent locations inputs =
 
 viewBatchAdd : Locations -> BatchAddModel -> List (Html BatchAddMsg)
 viewBatchAdd locations input =
-    [ MultiselectCalendar.view input.dates |> Html.fromUnstyled |> Html.map BatchMultiselectCalendarMsg
+    [ MultiselectCalendar.view input.dates |> Html.map BatchMultiselectCalendarMsg
     , viewTimeInput "Beginn"
         input.inputs.start
         (BatchAddInputMsg << BatchInputStartTime)

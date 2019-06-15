@@ -1,9 +1,9 @@
 module Utils.MultiselectCalendar exposing (Model, Msg, init, selected, update, view)
 
 import Date exposing (Date)
-import Html exposing (Html, a, button, div, form, input, li, table, tbody, td, text, th, thead, tr, ul)
-import Html.Attributes exposing (class, classList, type_, value)
-import Html.Events exposing (onClick, onInput, onSubmit)
+import Html.Styled as Html exposing (Html, a, button, div, form, input, li, table, tbody, td, text, th, thead, tr, ul)
+import Html.Styled.Attributes exposing (class, classList, type_, value)
+import Html.Styled.Events exposing (onClick, onInput, onSubmit)
 import Json.Encode as Encode
 import List.Extra as List
 import Parser exposing ((|.), (|=))
@@ -211,7 +211,7 @@ view : Model -> Html Msg
 view model =
     case model of
         Loading ->
-            text "Loading"
+            text "Lädt..."
 
         Loaded datesModel ->
             viewDates datesModel
@@ -227,23 +227,70 @@ viewDates model =
                     [ class "today"
                     , onClick GoToCurrentMonth
                     ]
-                    [ text "This month" ]
-                , text (Date.format "MMMM y" model.month)
+                    [ text "Jetziger Monat" ]
+                , text (formatMonth model.month)
                 ]
             , button
                 [ class "previous-month"
                 , onClick (MonthActionMsg PreviousMonth)
                 ]
-                [ text "Previous month" ]
+                [ text "Vorheriger Monat" ]
             , viewCalendar model
             , button
                 [ class "next-month"
                 , onClick (MonthActionMsg NextMonth)
                 ]
-                [ text "Next month" ]
+                [ text "Nächster Monat" ]
             ]
         , viewDatesList model.dateInput model.selected
         ]
+
+
+formatMonth : Date -> String
+formatMonth date =
+    let
+        month =
+            case Date.month date of
+                Time.Jan ->
+                    "Januar"
+
+                Time.Feb ->
+                    "Februar"
+
+                Time.Mar ->
+                    "März"
+
+                Time.Apr ->
+                    "April"
+
+                Time.May ->
+                    "Mai"
+
+                Time.Jun ->
+                    "Juni"
+
+                Time.Jul ->
+                    "Juli"
+
+                Time.Aug ->
+                    "August"
+
+                Time.Sep ->
+                    "September"
+
+                Time.Oct ->
+                    "Oktober"
+
+                Time.Nov ->
+                    "November"
+
+                Time.Dec ->
+                    "Dezember"
+
+        year =
+            Date.year date |> String.fromInt
+    in
+    month ++ " " ++ year
 
 
 button : List (Html.Attribute DatesMsg) -> List (Html DatesMsg) -> Html DatesMsg
@@ -333,15 +380,15 @@ viewDatesList currentInput dates =
     let
         viewDateListItem date =
             li []
-                [ button [ class "goto-date", onClick (GoToDate date) ] [ text "Go to" ]
+                [ button [ class "goto-date", onClick (GoToDate date) ] [ text "Zeige Datum im Kalender" ]
                 , text (Date.format "dd.MM.yyyy" date)
-                , button [ class "remove-date", onClick (CombinedActionMsg (Remove date) Nothing) ] [ text "Remove" ]
+                , button [ class "remove-date", onClick (CombinedActionMsg (Remove date) Nothing) ] [ text "Löschen" ]
                 ]
     in
     div [ class "selected-list" ]
         [ form [ onSubmit DateInputSubmitted ]
             [ input [ type_ "date", onInput DateInputChanged, value currentInput ] []
-            , Html.button [ class "add-date", type_ "submit" ] [ text "Add date" ]
+            , Html.button [ class "add-date", type_ "submit" ] [ text "Datum hinzufügen" ]
             ]
         , ul [] (List.map viewDateListItem dates)
         ]
