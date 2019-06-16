@@ -304,6 +304,7 @@ type Msg
 type InputMsg
     = InputEvent EventMsg
     | InputBatchAdd BatchAddMsg
+    | BatchAddRequested
 
 
 type EventMsg
@@ -378,6 +379,30 @@ updateInputs locations msg inputs =
             { inputs
                 | batchAdd = updateBatchAdd locations batchAddMsg inputs.batchAdd
             }
+
+        BatchAddRequested ->
+            let
+                occurrenceInputs : List OccurrenceInput
+                occurrenceInputs =
+                    List.map
+                        (\date ->
+                            let
+                                start : Input { date : String, time : String } Naive.DateTime
+                                start =
+                                    Utils.buildInput
+                                        { date = Date.toIsoString date
+                                        , time = Utils.getRaw inputs.batchAdd.inputs.start
+                                        }
+                                        Utils.dateTimeValidator
+                            in
+                            OccurrenceInput start inputs.batchAdd.inputs.duration inputs.batchAdd.inputs.locationId
+                        )
+                        (MultiselectCalendar.selected inputs.batchAdd.dates)
+
+                eventInputs =
+                    inputs.eventInputs
+            in
+            { inputs | eventInputs = { eventInputs | occurrences = eventInputs.occurrences ++ occurrenceInputs } }
 
 
 updateEventInputs : Locations -> EventMsg -> EventInput -> EventInput
@@ -541,10 +566,9 @@ viewEditEvent locations inputs =
                  ]
                     ++ (case inputs.batchAdd.status of
                             Shown ->
-                                [ Html.map InputBatchAdd <|
-                                    div
-                                        [ css [ Css.marginTop (em 1) ] ]
-                                        (viewBatchAdd locations inputs.batchAdd)
+                                [ div
+                                    [ css [ Css.marginTop (em 1) ] ]
+                                    (viewBatchAdd locations inputs.batchAdd)
                                 ]
 
                             _ ->
@@ -566,7 +590,7 @@ viewEditEvent locations inputs =
     ]
 
 
-viewBatchAdd : Locations -> BatchAddModel -> List (Html BatchAddMsg)
+viewBatchAdd : Locations -> BatchAddModel -> List (Html InputMsg)
 viewBatchAdd locations input =
     let
         titleStyle =
@@ -576,19 +600,19 @@ viewBatchAdd locations input =
                 ]
     in
     [ h3 [ css [ titleStyle ] ] [ text "Daten" ]
-    , MultiselectCalendar.view input.dates |> Html.map BatchMultiselectCalendarMsg
+    , MultiselectCalendar.view input.dates |> Html.map (InputBatchAdd << BatchMultiselectCalendarMsg)
     , h3 [ css [ titleStyle, Css.marginTop (em 1) ] ] [ text "Einstellungen" ]
     , div [ css [ editOccurrenceStyle ] ]
         [ viewTimeInput "Beginn"
             input.inputs.start
-            (BatchAddInputMsg << BatchInputStartTime)
-        , viewInputNumber "Dauer (in Minuten)" input.inputs.duration (BatchAddInputMsg << BatchInputDuration)
+            (InputBatchAdd << BatchAddInputMsg << BatchInputStartTime)
+        , viewInputNumber "Dauer (in Minuten)" input.inputs.duration (InputBatchAdd << BatchAddInputMsg << BatchInputDuration)
         , let
             options =
                 IdDict.map (\id location -> { name = location.name, value = IdDict.encodeIdForUrl id }) locations
           in
           div []
-            ([ Utils.viewSelection "Ort" input.inputs.locationId options (BatchAddInputMsg << BatchInputLocationId)
+            ([ Utils.viewSelection "Ort" input.inputs.locationId options (InputBatchAdd << BatchAddInputMsg << BatchInputLocationId)
              ]
                 ++ (case extract input.inputs.locationId of
                         Just id ->
@@ -599,6 +623,7 @@ viewBatchAdd locations input =
                    )
             )
         ]
+    , Utils.button "Hinzufügen" BatchAddRequested
     ]
 
 

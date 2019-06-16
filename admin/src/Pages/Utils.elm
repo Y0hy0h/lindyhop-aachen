@@ -2,6 +2,7 @@ module Pages.Utils exposing
     ( Enabledness(..)
     , In
     , Input
+    , getRaw
     , breadcrumbs
     , buildInput
     , button
@@ -109,6 +110,9 @@ validate (Input raw validator) =
 extract : Input raw a -> Maybe a
 extract input =
     validate input |> Result.toMaybe
+
+getRaw : Input raw a -> raw
+getRaw (Input raw _) = raw
 
 
 type alias In a =
