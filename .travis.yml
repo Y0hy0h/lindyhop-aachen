@@ -13,9 +13,7 @@ matrix:
           deploy:
             provider: script
             skip_cleanup: true
-            script: 
-              - rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/admin/dist/ btsnake@185.26.156.85:etc/lindy-website/admin/
-              - rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/assets/ btsnake@185.26.156.85:etc/lindy-website/
+            script: rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/admin/dist/ btsnake@185.26.156.85:etc/lindy-website/admin/ && rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/assets/ btsnake@185.26.156.85:etc/lindy-website/
 
             on:
               branch: deploy
@@ -23,17 +21,15 @@ matrix:
         - language: rust
           rust:
               - nightly
+          install: rustup target add x86_64-unknown-linux-musl --toolchain=nightly
           script:
-              - cargo build --release
+              - cargo build --release --target x86_64-unknown-linux-musl
           cache: cargo
 
           deploy:
             provider: script
             skip_cleanup: true
-            script: 
-              - ssh btsnake@185.26.156.85 supervisorctl stop lindy-website
-              - rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/target/release/lindyhop-aachen btsnake@185.26.156.85:bin/lindy-website
-              - ssh btsnake@185.26.156.85 supervisorctl start lindy-website
+            script: ssh btsnake@185.26.156.85 supervisorctl stop lindy-website && rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/target/release/lindyhop-aachen btsnake@185.26.156.85:bin/lindy-website && ssh btsnake@185.26.156.85 supervisorctl start lindy-website
             on:
               branch: deploy
 
