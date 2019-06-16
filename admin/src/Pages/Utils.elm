@@ -2,7 +2,6 @@ module Pages.Utils exposing
     ( Enabledness(..)
     , In
     , Input
-    , getRaw
     , breadcrumbs
     , buildInput
     , button
@@ -11,6 +10,7 @@ module Pages.Utils exposing
     , dateValidator
     , extract
     , fields
+    , getRaw
     , inputDateTime
     , inputString
     , labeled
@@ -111,8 +111,10 @@ extract : Input raw a -> Maybe a
 extract input =
     validate input |> Result.toMaybe
 
+
 getRaw : Input raw a -> raw
-getRaw (Input raw _) = raw
+getRaw (Input raw _) =
+    raw
 
 
 type alias In a =
