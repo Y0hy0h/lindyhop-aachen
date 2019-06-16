@@ -7,6 +7,7 @@ module Pages.Utils exposing
     , button
     , buttonWithOptions
     , dateTimeValidator
+    , dateValidator
     , extract
     , fields
     , inputDateTime
@@ -15,7 +16,6 @@ module Pages.Utils exposing
     , timeValidator
     , updateInput
     , validate
-    , dateValidator
     , viewDateTimeInput
     , viewInputNumber
     , viewInputText

@@ -98,7 +98,7 @@ updateLoad msg model =
     case msg of
         FetchedEvents result ->
             Result.map
-                    (fromEvents model.key )
+                (fromEvents model.key)
                 result
 
 

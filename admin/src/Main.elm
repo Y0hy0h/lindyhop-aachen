@@ -162,7 +162,7 @@ update msg model =
             case model of
                 Loading key loaded (CreateEventLoad subModel) ->
                     case Pages.CreateEvent.updateLoad subMsg subModel of
-                        Ok (newSubModel, newSubMsg) ->
+                        Ok ( newSubModel, newSubMsg ) ->
                             ( Loaded key (CreateEvent newSubModel), Cmd.map CreateEventMsg newSubMsg )
 
                         Err error ->
@@ -188,8 +188,8 @@ update msg model =
             case model of
                 Loading key loaded (EditEventLoad subModel) ->
                     case Pages.EditEvent.updateLoad subMsg subModel of
-                        Ok (newSubModel, newSubMsg) ->
-                            ( Loaded key (EditEvent newSubModel), Cmd.map EditEventMsg newSubMsg)
+                        Ok ( newSubModel, newSubMsg ) ->
+                            ( Loaded key (EditEvent newSubModel), Cmd.map EditEventMsg newSubMsg )
 
                         Err error ->
                             let
