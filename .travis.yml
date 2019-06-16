@@ -30,7 +30,10 @@ matrix:
           deploy:
             provider: script
             skip_cleanup: true
-            script: rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/target/release/lindyhop-aachen btsnake@185.26.156.85:bin/
+            script: 
+              - ssh btsnake@185.26.156.85 supervisorctl stop lindy-website
+              - rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/target/release/lindyhop-aachen btsnake@185.26.156.85:bin/lindy-website
+              - ssh btsnake@185.26.156.85 supervisorctl start lindy-website
             on:
               branch: deploy
 
