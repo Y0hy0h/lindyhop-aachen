@@ -14,6 +14,14 @@ Compiling server, styles, and admin, and recompiling each of them on changes, is
 yarn watch
 ```
 
+## Deployment
+The Dockerfile can be used to compile everything into a distributable form. The artifacts will be in `/lindyhop-aachen`, inside of which is the executable you need to run called `lindyhop-aachen`.
+
+1. `docker build . -t lindy`
+2. `docker create --name lindy lindy`.
+3. `docker cp lindy:/lindyhop-aachen <your_output_dir>`
+3. Execute `<your_output_dir>/lindyhop-aachen/lindyhop-aachen`
+
 [cargo-watch]: https://github.com/passcod/cargo-watch
 [Node.js]: https://nodejs.org/en/
 [Yarn]: https://yarnpkg.com/lang/en/
