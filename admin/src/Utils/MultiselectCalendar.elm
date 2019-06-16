@@ -407,6 +407,9 @@ viewCalendarDay is day =
                 ++ selectedStyle
                 ++ [ Css.textAlign Css.right
                    , Css.border (em 0)
+                   , Css.hover
+                        [ Css.cursor Css.pointer
+                        ]
                    ]
 
         dateAction =

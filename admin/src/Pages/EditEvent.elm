@@ -18,11 +18,11 @@ module Pages.EditEvent exposing
     , viewEditEvent
     )
 
-import Css exposing (em, flexStart, row, zero)
+import Css exposing (em, flexStart, px, row, zero)
 import Css.Global as Css
 import Date exposing (Date)
 import Events exposing (Event, Location, Locations, Occurrence)
-import Html.Styled as Html exposing (Html, a, div, h2, input, label, li, ol, p, text, textarea)
+import Html.Styled as Html exposing (Html, a, div, h2, h3, input, label, li, ol, p, text, textarea)
 import Html.Styled.Attributes exposing (css, href, type_, value)
 import Html.Styled.Events exposing (onInput)
 import Http
@@ -443,12 +443,12 @@ updateEventInputs locations msg event =
         AddOccurrence ->
             let
                 newOccurrences =
-                    event.occurrences
-                        ++ [ { start = Utils.buildInput { date = "", time = "" } Utils.dateTimeValidator
-                             , duration = Utils.buildInput "" durationValidator
-                             , locationId = Utils.buildInput "" (locationIdValidator locations)
-                             }
-                           ]
+                    [ { start = Utils.buildInput { date = "", time = "" } Utils.dateTimeValidator
+                      , duration = Utils.buildInput "" durationValidator
+                      , locationId = Utils.buildInput "" (locationIdValidator locations)
+                      }
+                    ]
+                        ++ event.occurrences
             in
             { event | occurrences = newOccurrences }
 
@@ -511,6 +511,48 @@ view model =
 
 viewEditEvent : Locations -> InputModel -> List (Html InputMsg)
 viewEditEvent locations inputs =
+    let
+        occurrences =
+            List.indexedMap
+                (\index occurrence ->
+                    li [] [ viewEditOccurrence locations index occurrence |> Html.map InputEvent ]
+                )
+                inputs.eventInputs.occurrences
+
+        controls =
+            [ let
+                batchAddLabel =
+                    case inputs.batchAdd.status of
+                        Shown ->
+                            "Mehrtermindialog schließen"
+
+                        Hidden ->
+                            "Mehrere Termine hinzufügen"
+              in
+              div
+                [ css
+                    [ Css.marginTop (em 1)
+                    , Css.padding (em 1)
+                    , Css.border3 (px 1) Css.solid (Css.rgb 0 0 0)
+                    ]
+                ]
+                ([ Utils.button "Neuer Termin" (InputEvent AddOccurrence)
+                 , Utils.button batchAddLabel (InputBatchAdd ClickedBatchAdd)
+                 ]
+                    ++ (case inputs.batchAdd.status of
+                            Shown ->
+                                [ Html.map InputBatchAdd <|
+                                    div
+                                        [ css [ Css.marginTop (em 1) ] ]
+                                        (viewBatchAdd locations inputs.batchAdd)
+                                ]
+
+                            _ ->
+                                []
+                       )
+                )
+            ]
+    in
     [ fields
         [ viewInputText "Titel" inputs.eventInputs.title (InputEvent << InputName)
         , viewInputText "Teaser" inputs.eventInputs.teaser (InputEvent << InputTeaser)
@@ -518,58 +560,45 @@ viewEditEvent locations inputs =
         ]
     , h2 [] [ text "Termine" ]
     , ol [ css [ spreadListItemStyle ] ]
-        (List.indexedMap
-            (\index occurrence ->
-                li [] [ viewEditOccurrence locations index occurrence |> Html.map InputEvent ]
-            )
-            inputs.eventInputs.occurrences
-            ++ [ let
-                    batchAddLabel =
-                        case inputs.batchAdd.status of
-                            Shown ->
-                                "Mehrtermindialog schließen"
-
-                            Hidden ->
-                                "Mehrere Termine hinzufügen"
-                 in
-                 div [ css [ Css.marginTop (em 1) ] ]
-                    [ Utils.button "Neuer Termin" (InputEvent AddOccurrence)
-                    , Utils.button batchAddLabel (InputBatchAdd ClickedBatchAdd)
-                    ]
-               ]
-            ++ (case inputs.batchAdd.status of
-                    Shown ->
-                        [ Html.map InputBatchAdd <| div [] (viewBatchAdd locations inputs.batchAdd) ]
-
-                    _ ->
-                        []
-               )
+        ([ div [ css [ Css.marginBottom (em 1) ] ] controls ]
+            ++ occurrences
         )
     ]
 
 
 viewBatchAdd : Locations -> BatchAddModel -> List (Html BatchAddMsg)
 viewBatchAdd locations input =
-    [ MultiselectCalendar.view input.dates |> Html.map BatchMultiselectCalendarMsg
-    , viewTimeInput "Beginn"
-        input.inputs.start
-        (BatchAddInputMsg << BatchInputStartTime)
-    , viewInputNumber "Dauer (in Minuten)" input.inputs.duration (BatchAddInputMsg << BatchInputDuration)
-    , let
-        options =
-            IdDict.map (\id location -> { name = location.name, value = IdDict.encodeIdForUrl id }) locations
-      in
-      div []
-        ([ Utils.viewSelection "Ort" input.inputs.locationId options (BatchAddInputMsg << BatchInputLocationId)
-         ]
-            ++ (case extract input.inputs.locationId of
-                    Just id ->
-                        [ a [ href <| Routes.toRelativeUrl <| Routes.EditLocation (IdDict.encodeIdForUrl id) ] [ text "Bearbeiten" ] ]
+    let
+        titleStyle =
+            Css.batch
+                [ Css.margin zero
+                , Css.marginBottom (em 0.7)
+                ]
+    in
+    [ h3 [ css [ titleStyle ] ] [ text "Daten" ]
+    , MultiselectCalendar.view input.dates |> Html.map BatchMultiselectCalendarMsg
+    , h3 [ css [ titleStyle, Css.marginTop (em 1) ] ] [ text "Einstellungen" ]
+    , div [ css [ editOccurrenceStyle ] ]
+        [ viewTimeInput "Beginn"
+            input.inputs.start
+            (BatchAddInputMsg << BatchInputStartTime)
+        , viewInputNumber "Dauer (in Minuten)" input.inputs.duration (BatchAddInputMsg << BatchInputDuration)
+        , let
+            options =
+                IdDict.map (\id location -> { name = location.name, value = IdDict.encodeIdForUrl id }) locations
+          in
+          div []
+            ([ Utils.viewSelection "Ort" input.inputs.locationId options (BatchAddInputMsg << BatchInputLocationId)
+             ]
+                ++ (case extract input.inputs.locationId of
+                        Just id ->
+                            [ a [ href <| Routes.toRelativeUrl <| Routes.EditLocation (IdDict.encodeIdForUrl id) ] [ text "Bearbeiten" ] ]
 
-                    Nothing ->
-                        []
-               )
-        )
+                        Nothing ->
+                            []
+                   )
+            )
+        ]
     ]
 
 
@@ -596,32 +625,34 @@ spreadListItemStyle =
         ]
 
 
+editOccurrenceStyle : Css.Style
+editOccurrenceStyle =
+    Css.batch
+        [ Css.displayFlex
+        , Css.flexDirection row
+        , Css.alignItems flexStart
+        , Css.children
+            [ Css.everything
+                [ Css.adjacentSiblings
+                    [ Css.everything
+                        [ Css.marginLeft (em 1)
+                        ]
+                    ]
+                , Css.paddingTop zero
+                , Css.paddingBottom zero
+                ]
+            ]
+        ]
+
+
 viewEditOccurrence : Locations -> Int -> OccurrenceInput -> Html EventMsg
 viewEditOccurrence locations index occurrence =
     let
         occMsg : OccurrenceMsg -> EventMsg
         occMsg subMsg =
             InputOccurrence index subMsg
-
-        occurrenceStyle =
-            Css.batch
-                [ Css.displayFlex
-                , Css.flexDirection row
-                , Css.alignItems flexStart
-                , Css.children
-                    [ Css.everything
-                        [ Css.adjacentSiblings
-                            [ Css.everything
-                                [ Css.marginLeft (em 1)
-                                ]
-                            ]
-                        , Css.paddingTop zero
-                        , Css.paddingBottom zero
-                        ]
-                    ]
-                ]
     in
-    div [ css [ occurrenceStyle ] ]
+    div [ css [ editOccurrenceStyle ] ]
         [ viewDateTimeInput "Beginn"
             occurrence.start
             { dateChanged = occMsg << InputStartDate
