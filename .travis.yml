@@ -31,4 +31,4 @@ deploy:
   skip_cleanup: true
   script: rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/target/release/lindyhop-aachen btsnake@185.26.156.85:bin/
   on:
-    branch: master
+    branch: deploy
