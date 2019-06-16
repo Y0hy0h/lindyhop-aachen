@@ -38,6 +38,10 @@ install: yarn --frozen-lockfile
 addons:
   ssh_known_hosts:
   - 185.26.156.85
+  apt:
+    packages:
+      # For building MUSL static builds on Linux.
+      - musl-tools
 
 before_install:
 - openssl aes-256-cbc -K $encrypted_c628346eb8fe_key -iv $encrypted_c628346eb8fe_iv
