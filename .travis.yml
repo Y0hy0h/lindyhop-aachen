@@ -10,12 +10,29 @@ matrix:
             directories:
               - 'node_modules'
 
+          deploy:
+            provider: script
+            skip_cleanup: true
+            script: 
+              - rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/admin/dist/ btsnake@185.26.156.85:etc/lindy-website/admin/
+              - rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/assets/ btsnake@185.26.156.85:etc/lindy-website/
+
+            on:
+              branch: deploy
+
         - language: rust
           rust:
               - nightly
           script:
-              - cargo build --verbose --all
+              - cargo build --release
           cache: cargo
+
+          deploy:
+            provider: script
+            skip_cleanup: true
+            script: rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/target/release/lindyhop-aachen btsnake@185.26.156.85:bin/
+            on:
+              branch: deploy
 
 install: yarn --frozen-lockfile
 
@@ -29,10 +46,3 @@ before_install:
 - eval "$(ssh-agent -s)"
 - chmod 600 /tmp/deploy_rsa
 - ssh-add /tmp/deploy_rsa
-
-deploy:
-  provider: script
-  skip_cleanup: true
-  script: rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/target/release/lindyhop-aachen btsnake@185.26.156.85:bin/
-  on:
-    branch: deploy
