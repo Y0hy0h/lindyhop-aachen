@@ -4,7 +4,7 @@ matrix:
           node_js:
             - lts/*
           script:
-              - yarn run compile:node
+              - yarn build:node
           cache:
             yarn: true
             directories:
