@@ -13,15 +13,18 @@ services:
 
 jobs:
   include:
+    - stage: test
+      script: yarn test
+      
     - stage: build
       script:
-        - skip
+        - docker build -t lindy .
       before_deploy:
         # Copy built files out of container
-        - mkdir ./dist
-        - touch ./dist/test
+        - docker create --name lindy lindy
+        - "docker cp lindy:/lindyhop-aachen ./dist"
         # Prepare for upload
-        - cd dist; zip ../dist.zip *; cd ..
+        - zip dist.zip dist/**/*
       deploy:
         provider: releases
         skip_cleanup: true
