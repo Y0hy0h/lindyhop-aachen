@@ -15,3 +15,20 @@ jobs:
   include:
     - stage: test
       script: yarn test
+
+    - stage: build
+      script:
+        - docker build -t lindy .
+
+    - stage: deploy
+      script:
+        # Copy built files out of container
+        - IMAGE_ID=$(docker create lindy)
+        - "docker cp $IMAGE_ID:/lindyhop-aachen" ./dist
+        # Prepare for upload
+        - zip dist.zip dist/**/*
+      deploy:
+        provider: releases
+        skip_cleanup: true
+        api_key: $GITHUB_PERSONAL_ACCESS_TOKEN
+        file: dist.zip
