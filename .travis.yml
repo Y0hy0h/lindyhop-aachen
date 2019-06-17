@@ -24,7 +24,7 @@ jobs:
         - docker create --name lindy lindy
         - "docker cp lindy:/lindyhop-aachen ./dist"
         # Prepare for upload
-        - zip dist.zip dist/**/*
+        - cd dist; zip dist.zip *; cd ..
       deploy:
         provider: releases
         skip_cleanup: true
