@@ -13,7 +13,7 @@ matrix:
           deploy:
             provider: script
             skip_cleanup: true
-            script: rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/admin/dist/ btsnake@185.26.156.85:etc/lindy-website/admin/ && rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/static/ btsnake@185.26.156.85:etc/lindy-website/
+            script: rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/admin/dist/ btsnake@185.26.156.85:etc/lindy-website/admin/dist/ && rsync -r --delete-after --quiet $TRAVIS_BUILD_DIR/static/ btsnake@185.26.156.85:etc/lindy-website/static/
 
             on:
               branch: deploy
