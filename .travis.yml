@@ -10,3 +10,8 @@ branches:
 
 services:
   - docker
+
+jobs:
+  include:
+    - stage: test
+      script: yarn test
