@@ -2,6 +2,12 @@ language: node_js
 node_js:
   - "lts/*"
 
+# Prevent automatically created tags from retriggering the build.
+# See https://docs.travis-ci.com/user/deployment/releases/#when-tag-is-not-set-at-deployment-time
+branches:
+  except:
+   - /^untagged/
+
 services:
   - docker
 
@@ -21,3 +27,6 @@ jobs:
         skip_cleanup: true
         api_key: $GITHUB_PERSONAL_ACCESS_TOKEN
         file: dist.zip
+        on:
+          branch:
+            - deploy-docker
