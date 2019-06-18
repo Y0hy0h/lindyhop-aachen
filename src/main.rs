@@ -148,7 +148,6 @@ fn main() {
         .mount(
             "/static",
             StaticFiles::from("./static"),
-            //StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")),
         )
         .mount("/", routes![index, admin_route, admin_subroute])
         .mount("/api", routes![api_overview])
