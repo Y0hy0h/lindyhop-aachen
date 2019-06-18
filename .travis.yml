@@ -22,7 +22,7 @@ jobs:
         - docker create --name lindy lindy
         - "docker cp lindy:/lindyhop-aachen ./dist"
         # Prepare for upload
-        - cd dist; zip ../dist.zip *; cd ..
+        - cd dist; zip -r ../dist.zip *; cd ..
         # Tag for GitHub Releases
         - git config --local user.name "Travis CI"
         - git config --local user.email "Travis CI"
