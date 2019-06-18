@@ -35,4 +35,4 @@ jobs:
         file: dist.zip
         on:
           branch:
-            - deploy-docker
+            - master
