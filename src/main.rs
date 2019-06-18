@@ -147,7 +147,7 @@ fn main() {
         .attach(Store::fairing())
         .mount(
             "/static",
-            StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/static")),
+            StaticFiles::from("./static"),
         )
         .mount("/", routes![index, admin_route, admin_subroute])
         .mount("/api", routes![api_overview])
