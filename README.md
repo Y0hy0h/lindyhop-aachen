@@ -22,9 +22,11 @@ The Dockerfile can be used to compile everything into a distributable form. The 
 3. Execute `<your_output_dir>/lindyhop-aachen`
 
 ## Deployment
-You can download a precompiled binary along with all necessary files from this [repository's releases](./releases).
+You can download a precompiled binary along with all necessary files from this [repository's releases](./releases). The `dist.zip` contains all files necessary for running a fresh server.
 
-In case you want to keep your old database, be aware that you might need to migrate it to a new format.
+In case you already have a version, copy only the non-config files. Notably, these files should not be overwritten:
+- `Rocket.toml`: Your Rocket server config.
+- `db/`: Your database. Be aware that you might need to migrate your existing database to a new format.
 
 [cargo-watch]: https://github.com/passcod/cargo-watch
 [Node.js]: https://nodejs.org/en/
