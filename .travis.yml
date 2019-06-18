@@ -2,6 +2,10 @@ language: node_js
 node_js:
   - "lts/*"
 
+# Do not run when triggered by tag.
+# See https://github.com/travis-ci/travis-ci/issues/8051#issuecomment-335517982
+if: tag is blank
+
 services:
   - docker
 
