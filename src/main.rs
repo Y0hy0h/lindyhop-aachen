@@ -154,5 +154,6 @@ fn main() {
         .mount("/api", routes![api_overview])
         .mount("/api/events/", event_with_occurrences::routes())
         .mount("/api/locations/", location::routes())
+        .mount("/newsletter", newsletter::routes())
         .launch();
 }

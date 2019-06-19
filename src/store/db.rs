@@ -47,6 +47,14 @@ pub mod schema {
             address -> Text,
         }
     }
+    table! {
+        newsletter {
+            id -> Binary,
+            title -> Text,
+            date -> Timestamp,
+            content -> Text
+        }
+    }
 }
 
 use std::io::Write;

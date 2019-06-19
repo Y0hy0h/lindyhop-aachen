@@ -48,6 +48,13 @@ pub struct Location {
     pub address: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Newsletter {
+    pub title: String,
+    pub date: NaiveDateTime,
+    pub content: String,
+}
+
 mod location_action {
     use super::db::schema::locations::{dsl::locations as schema, table};
     use super::*;
@@ -60,6 +67,13 @@ mod event_actions {
     use super::*;
 
     derive_actions!(Event, SqlEvent);
+}
+
+mod newsletter_actions {
+    use super::db::schema::newsletter::{dsl::newsletter as schema, table};
+    use super::*;
+
+    derive_actions!(Newsletter, SqlNewsletter);
 }
 
 #[derive(Deserialize, Serialize, Debug)]
