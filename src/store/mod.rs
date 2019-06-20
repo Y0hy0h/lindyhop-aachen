@@ -104,6 +104,7 @@ impl Store {
         use db::schema::occurrences::dsl::{occurrences, start};
 
         let sql_occurrences = occurrences
+            .filter(start.gt(chrono::Local::now().naive_local()))
             .order(start.asc())
             .load::<SqlOccurrence>(&*self.0)
             .unwrap();
@@ -149,7 +150,9 @@ impl Actions<EventWithOccurrences> for Store {
             .expect("Loading from database failed.")
             .into_iter()
             .map(|sql_event| {
+                use db::schema::occurrences::dsl::start;
                 let occurrences: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_event)
+                    .filter(start.gt(chrono::Local::now().naive_local()))
                     .load::<SqlOccurrence>(&*self.0)
                     .expect("Loading from database failed.")
                     .into_iter()
@@ -194,7 +197,9 @@ impl Actions<EventWithOccurrences> for Store {
             .find(SqlId::from(item_id))
             .first::<SqlEvent>(&*self.0)?;
 
+        use db::schema::occurrences::dsl::start;
         let occurrences: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_event)
+            .filter(start.gt(chrono::Local::now().naive_local()))
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
             .map(|sql_occurrence| {
