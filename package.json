@@ -7,13 +7,13 @@
         "sass": "^1.19.0"
     },
     "scripts": {
-        "build": "npm run compile:admin && npm run compile:scss && npm run compile:server",
-        "build:node": "npm run compile:admin && npm run compile:scss",
+        "build": "npm run compile:admin && npm run compile:styles && npm run compile:server",
+        "build:node": "npm run compile:admin && npm run compile:styles ",
         "compile:server": "cargo build",
         "compile:admin": "(cd admin && elm make --optimize --output=dist/index.html src/Main.elm)",
-        "compile:scss": "sass styles:static",
+        "compile:styles": "sass styles:static",
         "watch": "concurrently \"npm:watch:*\"",
-        "watch:scss": "npm run compile:scss -- --watch",
+        "watch:styles": "npm run compile:styles -- --watch",
         "watch:admin": "chokidar admin/src/*.elm admin/src/**/*.elm -c \"npm run compile:admin\" --initial",
         "watch:server": "cargo watch -x run -w src/ -w Cargo.toml ",
         "test": "npm run test:admin",
