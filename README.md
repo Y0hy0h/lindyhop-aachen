@@ -5,7 +5,7 @@
 A website about all things Lindy Hop in Aachen.
 
 ## Development
-Set up the database by downloading the [Diesel CLI] with `cargo install diesel_cli --no-default-features --features "sqlite-bundled"`, creating a directory `./db`, and executing `diesel setup --database-url db/db.sqlite`.
+The database is created manually when the server starts up, if it does not yet exist. Make sure to create a `./db` direcotry. To manually set up the database, downloade the [Diesel CLI] with `cargo install diesel_cli --no-default-features --features "sqlite-bundled"`, and execute `diesel setup --database-url db/db.sqlite`.
 
 Using [cargo-watch], you can recompile Rust on file changes. Install it using `cargo install cargo-watch`. Also install the [Node.js] dependencies with [Yarn] by running `yarn install`.
 
