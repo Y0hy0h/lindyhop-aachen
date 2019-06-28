@@ -14,7 +14,7 @@ pub fn initialize(rocket: Rocket) -> Result<Rocket, Rocket> {
     let result = match embedded_migrations::run(&*conn) {
         Ok(()) => Ok(rocket),
         Err(e) => {
-            println!("Failed to run database migrations: {:?}", e);
+            eprintln!("Failed to run database migrations: {:?}", e);
             Err(rocket)
         }
     };
@@ -200,7 +200,7 @@ impl From<(OccurrenceWithLocation, SqlId<Event>)> for SqlOccurrence {
     }
 }
 
-#[derive(Queryable, Clone,Identifiable, Insertable, Debug, AsChangeset)]
+#[derive(Queryable, Clone, Identifiable, Insertable, Debug, AsChangeset)]
 #[table_name = "locations"]
 pub struct SqlLocation {
     pub id: SqlId<Location>,
