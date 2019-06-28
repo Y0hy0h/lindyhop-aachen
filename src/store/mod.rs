@@ -2,11 +2,14 @@ mod db;
 mod model;
 
 use std::collections::{BTreeMap, HashMap};
+use std::io::Cursor;
 use std::marker::PhantomData;
 
 use chrono::{NaiveDate, NaiveDateTime};
 use rocket::http::RawStr;
-use rocket::request::{FromParam, FromRequest, Outcome, Request};
+use rocket::http::Status;
+use rocket::request::{FormItem, FromParam, FromQuery, FromRequest, Outcome, Query, Request};
+use rocket::response::{self, Responder, Response};
 use rocket::{fairing, fairing::Fairing, Rocket};
 use rocket_contrib::uuid::Uuid as RocketUuid;
 use uuid::Uuid;
@@ -55,7 +58,8 @@ impl Store {
 
     pub fn read_all(&self) -> Overview {
         let locs: HashMap<Id<Location>, Location> = self.all();
-        let evts: HashMap<Id<Event>, EventWithOccurrences> = self.all_events_with_occurrences();
+        let evts: HashMap<Id<Event>, EventWithOccurrences> =
+            self.all_events_with_occurrences(OccurrenceFilter::upcoming());
 
         Overview {
             locations: locs,
@@ -199,8 +203,86 @@ impl Actions<Location> for Store {
     }
 }
 
+#[derive(Debug)]
+pub struct OccurrenceFilter {
+    pub before: Option<NaiveDateTime>,
+    pub after: Option<NaiveDateTime>,
+}
+
+impl Default for OccurrenceFilter {
+    fn default() -> Self {
+        OccurrenceFilter {
+            before: None,
+            after: None,
+        }
+    }
+}
+
+impl OccurrenceFilter {
+    pub fn upcoming() -> Self {
+        let today = NaiveDateTime::new(
+            chrono::Local::today().naive_local(),
+            chrono::NaiveTime::from_hms(0, 0, 0),
+        );
+        OccurrenceFilter {
+            before: None,
+            after: Some(today),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub enum OccurrenceFilterError {
+    InvalidBeforeDate,
+    InvalidAfterDate,
+    InvalidRange,
+}
+
+impl<'r> Responder<'r> for OccurrenceFilterError {
+    fn respond_to(self, _: &Request) -> response::Result<'r> {
+        Response::build()
+            .sized_body(Cursor::new(serde_json::to_string(&self).unwrap()))
+            .status(Status::UnprocessableEntity)
+            .ok()
+    }
+}
+
+impl<'q> FromQuery<'q> for OccurrenceFilter {
+    type Error = OccurrenceFilterError;
+
+    fn from_query(mut query: Query<'q>) -> Result<Self, Self::Error> {
+        use OccurrenceFilterError::*;
+        let before: Option<NaiveDateTime> = query
+            .clone()
+            .find(|i| i.key == "before")
+            .map(|item| decode_datetime(item).ok_or(InvalidBeforeDate))
+            .transpose()?;
+        let after: Option<NaiveDateTime> = query
+            .find(|i| {
+                println!("{:?}", i);
+                i.key == "after"
+            })
+            .map(|item| decode_datetime(item).ok_or(InvalidAfterDate))
+            .transpose()?;
+
+        if after < before {
+            return Err(InvalidRange)?;
+        }
+
+        Ok(OccurrenceFilter { before, after })
+    }
+}
+
+fn decode_datetime(item: FormItem) -> Option<NaiveDateTime> {
+    println!("{:?}", item);
+    chrono::NaiveDateTime::parse_from_str(&item.value.url_decode_lossy(), "%Y-%m-%dT%H:%M:%S").ok()
+}
+
 impl Store {
-    pub fn all_events_with_occurrences(&self) -> HashMap<Id<Event>, EventWithOccurrences> {
+    pub fn all_events_with_occurrences(
+        &self,
+        filter: OccurrenceFilter,
+    ) -> HashMap<Id<Event>, EventWithOccurrences> {
         use db::schema::events::dsl::events;
 
         events
@@ -209,18 +291,23 @@ impl Store {
             .into_iter()
             .map(|sql_event| {
                 use db::schema::occurrences::dsl::start;
-                let occurrences: Vec<OccurrenceWithLocation> =
-                    SqlOccurrence::belonging_to(&sql_event)
-                        .filter(start.gt(chrono::Local::now().naive_local()))
-                        .load::<SqlOccurrence>(&*self.0)
-                        .expect("Loading from database failed.")
-                        .into_iter()
-                        .map(|sql_occurrence| {
-                            let (_, occurrence) = sql_occurrence.into();
+                let mut query = SqlOccurrence::belonging_to(&sql_event).into_boxed();
+                if let Some(datetime) = filter.after {
+                    query = query.filter(start.gt(datetime));
+                }
+                if let Some(datetime) = filter.before {
+                    query = query.filter(start.lt(datetime));
+                }
+                let occurrences: Vec<OccurrenceWithLocation> = query
+                    .load::<SqlOccurrence>(&*self.0)
+                    .expect("Loading from database failed.")
+                    .into_iter()
+                    .map(|sql_occurrence| {
+                        let (_, occurrence) = sql_occurrence.into();
 
-                            occurrence
-                        })
-                        .collect();
+                        occurrence
+                    })
+                    .collect();
 
                 let (id, event) = sql_event.into();
 
@@ -255,6 +342,7 @@ impl Store {
     pub fn read_event_with_occurrences(
         &self,
         item_id: Id<Event>,
+        filter: OccurrenceFilter,
     ) -> QueryResult<EventWithOccurrences> {
         use db::schema::events::dsl::events;
         use db::SqlId;
@@ -263,8 +351,14 @@ impl Store {
             .first::<SqlEvent>(&*self.0)?;
 
         use db::schema::occurrences::dsl::start;
-        let occurrences: Vec<OccurrenceWithLocation> = SqlOccurrence::belonging_to(&sql_event)
-            .filter(start.gt(chrono::Local::now().naive_local()))
+        let mut query = SqlOccurrence::belonging_to(&sql_event).into_boxed();
+        if let Some(datetime) = filter.after {
+            query = query.filter(start.gt(datetime));
+        }
+        if let Some(datetime) = filter.before {
+            query = query.filter(start.lt(datetime));
+        }
+        let occurrences: Vec<OccurrenceWithLocation> = query
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
             .map(|sql_occurrence| {
@@ -283,6 +377,7 @@ impl Store {
         &self,
         item_id: Id<Event>,
         new_item: EventWithOccurrences,
+        filter: OccurrenceFilter
     ) -> QueryResult<EventWithOccurrences> {
         use db::SqlId;
 
@@ -290,7 +385,14 @@ impl Store {
         use db::schema::events::dsl::events;
         let sql_previous = events.find(raw_id.clone()).first::<SqlEvent>(&*self.0)?;
 
-        let associated_occurrences = SqlOccurrence::belonging_to(&sql_previous);
+        use db::schema::occurrences::dsl::start;
+        let mut associated_occurrences = SqlOccurrence::belonging_to(&sql_previous).into_boxed();
+        if let Some(datetime) = filter.after {
+            associated_occurrences= associated_occurrences.filter(start.gt(datetime));
+        }
+        if let Some(datetime) = filter.before {
+            associated_occurrences= associated_occurrences.filter(start.lt(datetime));
+        }
         let previous_occurrences: Vec<OccurrenceWithLocation> = associated_occurrences
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
