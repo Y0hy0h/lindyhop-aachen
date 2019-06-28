@@ -75,7 +75,7 @@ impl Store {
             .fold(
                 BTreeMap::new(),
                 |mut acc: BTreeMap<NaiveDate, Vec<OccurrenceWithEvent>>, entry| {
-                    acc.entry(entry.occurrence.start.date())
+                    acc.entry(entry.occurrence.occurrence.start.date())
                         .and_modify(|entries| entries.push(entry.clone()))
                         .or_insert(vec![entry]);
                     acc
@@ -162,7 +162,7 @@ pub enum DeleteError<T> {
 
 impl Actions<EventWithOccurrences> for Store {
     type Id = Id<Event>;
-    type DeleteError = DeleteError<Occurrence>;
+    type DeleteError = DeleteError<OccurrenceWithLocation>;
 
     fn all(&self) -> HashMap<Self::Id, EventWithOccurrences> {
         use db::schema::events::dsl::events;
@@ -173,7 +173,7 @@ impl Actions<EventWithOccurrences> for Store {
             .into_iter()
             .map(|sql_event| {
                 use db::schema::occurrences::dsl::start;
-                let occurrences: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_event)
+                let occurrences: Vec<OccurrenceWithLocation> = SqlOccurrence::belonging_to(&sql_event)
                     .filter(start.gt(chrono::Local::now().naive_local()))
                     .load::<SqlOccurrence>(&*self.0)
                     .expect("Loading from database failed.")
@@ -220,7 +220,7 @@ impl Actions<EventWithOccurrences> for Store {
             .first::<SqlEvent>(&*self.0)?;
 
         use db::schema::occurrences::dsl::start;
-        let occurrences: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_event)
+        let occurrences: Vec<OccurrenceWithLocation> = SqlOccurrence::belonging_to(&sql_event)
             .filter(start.gt(chrono::Local::now().naive_local()))
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
@@ -248,7 +248,7 @@ impl Actions<EventWithOccurrences> for Store {
         let sql_previous = events.find(raw_id.clone()).first::<SqlEvent>(&*self.0)?;
 
         let associated_occurrences = SqlOccurrence::belonging_to(&sql_previous);
-        let previous_occurrences: Vec<Occurrence> = associated_occurrences
+        let previous_occurrences: Vec<OccurrenceWithLocation> = associated_occurrences
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
             .map(|sql_occurrence| {
@@ -292,7 +292,7 @@ impl Actions<EventWithOccurrences> for Store {
             .first::<SqlEvent>(&*self.0)
             .map_err(DeleteError::DieselError)?;
 
-        let occurrences: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_previous)
+        let occurrences: Vec<OccurrenceWithLocation> = SqlOccurrence::belonging_to(&sql_previous)
             .load::<SqlOccurrence>(&*self.0)
             .expect("Loading from database failed.")
             .into_iter()

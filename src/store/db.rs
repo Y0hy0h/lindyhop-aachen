@@ -162,29 +162,31 @@ pub struct SqlOccurrence {
     pub location_id: SqlId<Location>,
 }
 
-impl From<SqlOccurrence> for (Id<Occurrence>, Occurrence) {
+impl From<SqlOccurrence> for (Id<Occurrence>, OccurrenceWithLocation) {
     fn from(occurrence: SqlOccurrence) -> Self {
         (
             occurrence.id.0.into(),
-            Occurrence {
+            (OccurrenceWithLocation {occurrence: Occurrence {
                 start: occurrence.start,
                 duration: occurrence.duration as u32,
-                location_id: occurrence.location_id.into(),
             },
+                location_id: occurrence.location_id.into(),
+            }
+            )
         )
     }
 }
 
-impl From<(Occurrence, SqlId<Event>)> for SqlOccurrence {
-    fn from((occurrence, event_id): (Occurrence, SqlId<Event>)) -> SqlOccurrence {
+impl From<(OccurrenceWithLocation, SqlId<Event>)> for SqlOccurrence {
+    fn from((OccurrenceWithLocation {occurrence, location_id}, event_id): (OccurrenceWithLocation, SqlId<Event>)) -> SqlOccurrence {
         let id = Uuid::new_v4();
 
         SqlOccurrence {
             id: id.into(),
             start: occurrence.start,
             duration: occurrence.duration as i32,
-            location_id: occurrence.location_id.into(),
-            event_id: event_id.into(),
+            location_id: location_id.into(),
+            event_id: event_id,
         }
     }
 }

@@ -20,7 +20,9 @@ use rocket::response::NamedFile;
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
-use store::{Actions, Event, Id, Location, Occurrence, OccurrenceWithEvent, Overview, Store};
+use store::{
+    Actions, Event, Id, Location, OccurrenceWithEvent, OccurrenceWithLocation, Overview, Store,
+};
 
 #[get("/")]
 fn index(store: Store) -> Markup {
@@ -103,7 +105,7 @@ struct OccurrenceHtml {
 }
 
 fn html_from_occurrence(
-    occurrence: &Occurrence,
+    occurrence: &OccurrenceWithLocation,
     event: &Event,
     locations: &HashMap<Id<Location>, Location>,
 ) -> OccurrenceHtml {
@@ -115,7 +117,7 @@ fn html_from_occurrence(
 
     OccurrenceHtml {
         title: html! { ( event.title ) },
-        quick_info: html! { ( format!("{} - {}", occurrence.start.format("%H:%M"), location_name) ) },
+        quick_info: html! { ( format!("{} - {}", occurrence.occurrence.start.format("%H:%M"), location_name) ) },
         teaser: html! { ( event.teaser ) },
     }
 }

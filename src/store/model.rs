@@ -16,7 +16,6 @@ pub struct Event {
 pub struct Occurrence {
     pub start: NaiveDateTime,
     pub duration: Duration,
-    pub location_id: Id<Location>,
 }
 
 type Duration = u32;
@@ -36,6 +35,12 @@ pub struct Location {
     pub address: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OccurrenceWithLocation {
+    pub occurrence: Occurrence,
+    pub location_id: Id<Location>
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Overview {
     pub locations: HashMap<Id<Location>, Location>,
@@ -45,11 +50,11 @@ pub struct Overview {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct EventWithOccurrences {
     pub event: Event,
-    pub occurrences: Vec<Occurrence>,
+    pub occurrences: Vec<OccurrenceWithLocation>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct OccurrenceWithEvent {
-    pub occurrence: Occurrence,
+    pub occurrence: OccurrenceWithLocation,
     pub event: Event,
 }
