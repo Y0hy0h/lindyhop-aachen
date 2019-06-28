@@ -1,9 +1,9 @@
 mod db;
-#[macro_use]
-pub mod action;
+mod model;
 pub mod routes;
 
 use std::collections::{BTreeMap, HashMap};
+use std::marker::PhantomData;
 
 use chrono::{NaiveDate, NaiveDateTime};
 use rocket::request::{FromRequest, Outcome, Request};
@@ -15,72 +15,24 @@ use diesel::result::QueryResult;
 use diesel::{self, prelude::*};
 use serde::{Deserialize, Serialize};
 
-use action::Actions;
+pub use model::*;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Event {
-    pub title: String,
-    pub teaser: String,
-    pub description: String,
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct Id<Item> {
+    id: Uuid,
+    #[serde(skip)]
+    phantom: PhantomData<Item>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Occurrence {
-    pub start: NaiveDateTime,
-    pub duration: Duration,
-    pub location_id: Id,
-}
-
-type Duration = u32;
-
-impl Occurrence {
-    pub fn end(&self) -> NaiveDateTime {
-        use std::convert::TryInto;
-        use std::ops::Add;
-        self.start
-            .add(chrono::Duration::minutes(self.duration.try_into().unwrap()))
+impl<Item> From<Uuid> for Id<Item> {
+    fn from(uuid: Uuid) -> Self {
+        Id {
+            id: uuid,
+            phantom: PhantomData,
+        }
     }
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Location {
-    pub name: String,
-    pub address: String,
-}
-
-mod location_action {
-    use super::db::schema::locations::{dsl::locations as schema, table};
-    use super::*;
-
-    derive_actions!(Location, SqlLocation);
-}
-
-mod event_actions {
-    use super::db::schema::events::{dsl::events as schema, table};
-    use super::*;
-
-    derive_actions!(Event, SqlEvent);
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct Overview {
-    pub locations: HashMap<Id, Location>,
-    pub events: HashMap<Id, EventWithOccurrences>,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct EventWithOccurrences {
-    pub event: Event,
-    pub occurrences: Vec<Occurrence>,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct OccurrenceWithEvent {
-    pub occurrence: Occurrence,
-    pub event: Event,
-}
-
-pub type Id = Uuid;
 
 pub struct Store(db::Connection);
 
@@ -90,8 +42,8 @@ impl Store {
     }
 
     pub fn read_all(&self) -> Overview {
-        let locs: HashMap<Id, Location> = self.all();
-        let evts: HashMap<Id, EventWithOccurrences> = self.all();
+        let locs: HashMap<Id<Location>, Location> = self.all();
+        let evts: HashMap<Id<Event>, EventWithOccurrences> = self.all();
 
         Overview {
             locations: locs,
@@ -132,6 +84,76 @@ impl Store {
     }
 }
 
+pub trait Actions<T> {
+    type Id;
+    type DeleteError;
+
+    fn all(&self) -> HashMap<Self::Id, T>;
+    fn create(&self, item: T) -> QueryResult<Self::Id>;
+    fn read(&self, id: Self::Id) -> QueryResult<T>;
+    fn update(&self, id: Self::Id, new_item: T) -> QueryResult<T>;
+    fn delete(&self, id: Self::Id) -> Result<T, Self::DeleteError>;
+}
+
+use db::schema::locations::dsl::locations as schema;
+impl Actions<Location> for Store {
+    type Id = Id<Location>;
+    type DeleteError = diesel::result::Error;
+
+    fn all(&self) -> HashMap<Self::Id, Location> {
+        schema
+            .load::<SqlLocation>(&*self.0)
+            .expect("Could not load database")
+            .into_iter()
+            .map(|x| x.into())
+            .collect()
+    }
+
+    fn create(&self, item: Location) -> QueryResult<Self::Id> {
+        let sql_item: SqlLocation = item.into();
+        diesel::insert_into(schema)
+            .values(&sql_item)
+            .execute(&*self.0)?;
+
+        Ok(sql_item.id.into())
+    }
+
+    fn read(&self, item_id: Self::Id) -> QueryResult<Location> {
+        use db::SqlId;
+
+        schema
+            .find(SqlId::from(item_id))
+            .first::<SqlLocation>(&*self.0)
+            .map(|x| x.into())
+            .map(|(_, x)| x)
+    }
+
+    fn update(&self, item_id: Self::Id, new_item: Location) -> QueryResult<Location> {
+        use db::SqlId;
+
+        let raw_id: SqlId<Location> = item_id.into();
+        let (_, previous): (Id<Location>, Location) =
+            schema.find(&raw_id).first::<SqlLocation>(&*self.0)?.into();
+
+        diesel::update(schema.find(&raw_id))
+            .set::<SqlLocation>(new_item.into())
+            .execute(&*self.0)?;
+
+        Ok(previous)
+    }
+
+    fn delete(&self, id: Self::Id) -> Result<Location, Self::DeleteError> {
+        use db::SqlId;
+        let raw_id: SqlId<Location> = id.into();
+        let (_, previous): (Id<Location>, Location) =
+            schema.find(&raw_id).first::<SqlLocation>(&*self.0)?.into();
+
+        diesel::delete(schema.find(&raw_id)).execute(&*self.0)?;
+
+        Ok(previous)
+    }
+}
+
 #[derive(Debug)]
 pub enum DeleteError<T> {
     DieselError(diesel::result::Error),
@@ -139,7 +161,7 @@ pub enum DeleteError<T> {
 }
 
 impl Actions<EventWithOccurrences> for Store {
-    type Id = Id;
+    type Id = Id<Event>;
     type DeleteError = DeleteError<Occurrence>;
 
     fn all(&self) -> HashMap<Self::Id, EventWithOccurrences> {
@@ -221,7 +243,7 @@ impl Actions<EventWithOccurrences> for Store {
     ) -> QueryResult<EventWithOccurrences> {
         use db::SqlId;
 
-        let raw_id: SqlId = item_id.into();
+        let raw_id: SqlId<Event> = item_id.into();
         use db::schema::events::dsl::events;
         let sql_previous = events.find(raw_id.clone()).first::<SqlEvent>(&*self.0)?;
 
@@ -263,7 +285,7 @@ impl Actions<EventWithOccurrences> for Store {
     fn delete(&self, id: Self::Id) -> Result<EventWithOccurrences, Self::DeleteError> {
         use db::SqlId;
 
-        let raw_id: SqlId = id.into();
+        let raw_id: SqlId<Event> = id.into();
         use db::schema::events::dsl::events;
         let sql_previous = events
             .find(raw_id)

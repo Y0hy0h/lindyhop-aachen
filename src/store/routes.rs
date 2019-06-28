@@ -1,3 +1,4 @@
+#[macro_export]
 macro_rules! derive_routes {
     ($mod: ident, $type: ident) => {
         pub mod $mod {
@@ -53,6 +54,3 @@ macro_rules! derive_routes {
         }
     };
 }
-
-derive_routes!(location, Location);
-derive_routes!(event_with_occurrences, EventWithOccurrences);

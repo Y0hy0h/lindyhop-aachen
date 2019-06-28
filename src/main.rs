@@ -11,17 +11,16 @@ extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
 
-use rocket::response::NamedFile;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use chrono::prelude::*;
 use maud::{html, Markup, DOCTYPE};
+use rocket::response::NamedFile;
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
-use store::action::Actions;
-use store::{Event, Id, Location, Occurrence, OccurrenceWithEvent, Overview, Store};
+use store::{Actions, Event, Id, Location, Occurrence, OccurrenceWithEvent, Overview, Store};
 
 #[get("/")]
 fn index(store: Store) -> Markup {
@@ -39,7 +38,7 @@ fn index(store: Store) -> Markup {
                 }
                 main {
                     ol.schedule {
-                        @let locations: HashMap<Id, Location> = store.all();
+                        @let locations: HashMap<Id<Location>, Location> = store.all();
                         @for occurrences_for_date in store.occurrences_by_date() {
                             li { ( render_entry(&occurrences_for_date, &locations) ) }
                         }
@@ -52,7 +51,7 @@ fn index(store: Store) -> Markup {
 
 fn render_entry(
     (date, entries): &(NaiveDate, Vec<OccurrenceWithEvent>),
-    locations: &HashMap<Id, Location>,
+    locations: &HashMap<Id<Location>, Location>,
 ) -> Markup {
     html! {
         div.date { ( format_date(date) ) }
@@ -81,7 +80,10 @@ fn format_date(date: &NaiveDate) -> String {
     date.format(&format).to_string()
 }
 
-fn render_occurrence(entry: &OccurrenceWithEvent, locations: &HashMap<Id, Location>) -> Markup {
+fn render_occurrence(
+    entry: &OccurrenceWithEvent,
+    locations: &HashMap<Id<Location>, Location>,
+) -> Markup {
     html! {
         @let entry_html =  html_from_occurrence(&entry.occurrence, &entry.event, locations);
         div.quick-info { ( entry_html.quick_info ) }
@@ -103,7 +105,7 @@ struct OccurrenceHtml {
 fn html_from_occurrence(
     occurrence: &Occurrence,
     event: &Event,
-    locations: &HashMap<Id, Location>,
+    locations: &HashMap<Id<Location>, Location>,
 ) -> OccurrenceHtml {
     let maybe_location = locations.get(&occurrence.location_id);
     let location_name = match maybe_location {
@@ -141,17 +143,10 @@ fn api_overview(store: Store) -> Json<Overview> {
 }
 
 fn main() {
-    use store::routes::*;
-
     rocket::ignite()
         .attach(Store::fairing())
-        .mount(
-            "/static",
-            StaticFiles::from("./static"),
-        )
+        .mount("/static", StaticFiles::from("./static"))
         .mount("/", routes![index, admin_route, admin_subroute])
         .mount("/api", routes![api_overview])
-        .mount("/api/events/", event_with_occurrences::routes())
-        .mount("/api/locations/", location::routes())
         .launch();
 }
