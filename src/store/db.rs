@@ -80,7 +80,7 @@ impl<Item> From<SqlId<Item>> for super::Id<Item> {
 
 impl<Item> From<super::Id<Item>> for SqlId<Item> {
     fn from(id: super::Id<Item>) -> SqlId<Item> {
-        id.into()
+        id.id.into()
     }
 }
 
