@@ -82,6 +82,35 @@ impl Store {
                 },
             )
     }
+
+    pub fn locations_with_occurrences(&self) -> HashMap<Id<Location>, LocationWithOccurrences> {
+        use db::schema::locations::dsl::locations;
+
+        locations
+            .load::<SqlLocation>(&*self.0)
+            .expect("Loading from database failed.")
+            .into_iter()
+            .map(|sql_location| {
+                use db::schema::occurrences::dsl::start;
+                let occurrences: HashMap<Id<Occurrence>, Occurrence> =
+                    SqlOccurrence::belonging_to(&sql_location)
+                        .filter(start.gt(chrono::Local::now().naive_local()))
+                        .load::<SqlOccurrence>(&*self.0)
+                        .expect("Loading from database failed.")
+                        .into_iter()
+                        .map(|sql_occurrence| {
+                            let (id, occurrence) = sql_occurrence.into();
+
+                            (id, occurrence.occurrence)
+                        })
+                        .collect();
+
+                let (id, location) = sql_location.into();
+
+                (id, LocationWithOccurrences {location, occurrences})
+            })
+            .collect()
+    }
 }
 
 pub trait Actions<T> {
@@ -173,17 +202,18 @@ impl Actions<EventWithOccurrences> for Store {
             .into_iter()
             .map(|sql_event| {
                 use db::schema::occurrences::dsl::start;
-                let occurrences: Vec<OccurrenceWithLocation> = SqlOccurrence::belonging_to(&sql_event)
-                    .filter(start.gt(chrono::Local::now().naive_local()))
-                    .load::<SqlOccurrence>(&*self.0)
-                    .expect("Loading from database failed.")
-                    .into_iter()
-                    .map(|sql_occurrence| {
-                        let (_, occurrence) = sql_occurrence.into();
+                let occurrences: Vec<OccurrenceWithLocation> =
+                    SqlOccurrence::belonging_to(&sql_event)
+                        .filter(start.gt(chrono::Local::now().naive_local()))
+                        .load::<SqlOccurrence>(&*self.0)
+                        .expect("Loading from database failed.")
+                        .into_iter()
+                        .map(|sql_occurrence| {
+                            let (_, occurrence) = sql_occurrence.into();
 
-                        occurrence
-                    })
-                    .collect();
+                            occurrence
+                        })
+                        .collect();
 
                 let (id, event) = sql_event.into();
 

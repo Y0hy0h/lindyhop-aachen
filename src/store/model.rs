@@ -36,9 +36,15 @@ pub struct Location {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LocationWithOccurrences {
+    pub location: Location,
+    pub occurrences: HashMap<Id<Occurrence>, Occurrence>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OccurrenceWithLocation {
     pub occurrence: Occurrence,
-    pub location_id: Id<Location>
+    pub location_id: Id<Location>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

@@ -153,6 +153,7 @@ impl From<Event> for SqlEvent {
     Queryable, Insertable, Clone, Debug, Identifiable, PartialEq, AsChangeset, Associations,
 )]
 #[belongs_to(SqlEvent, foreign_key = "event_id")]
+#[belongs_to(SqlLocation, foreign_key = "location_id")]
 #[table_name = "occurrences"]
 pub struct SqlOccurrence {
     pub id: SqlId<Occurrence>,
@@ -166,19 +167,27 @@ impl From<SqlOccurrence> for (Id<Occurrence>, OccurrenceWithLocation) {
     fn from(occurrence: SqlOccurrence) -> Self {
         (
             occurrence.id.0.into(),
-            (OccurrenceWithLocation {occurrence: Occurrence {
-                start: occurrence.start,
-                duration: occurrence.duration as u32,
-            },
+            (OccurrenceWithLocation {
+                occurrence: Occurrence {
+                    start: occurrence.start,
+                    duration: occurrence.duration as u32,
+                },
                 location_id: occurrence.location_id.into(),
-            }
-            )
+            }),
         )
     }
 }
 
 impl From<(OccurrenceWithLocation, SqlId<Event>)> for SqlOccurrence {
-    fn from((OccurrenceWithLocation {occurrence, location_id}, event_id): (OccurrenceWithLocation, SqlId<Event>)) -> SqlOccurrence {
+    fn from(
+        (
+            OccurrenceWithLocation {
+                occurrence,
+                location_id,
+            },
+            event_id,
+        ): (OccurrenceWithLocation, SqlId<Event>),
+    ) -> SqlOccurrence {
         let id = Uuid::new_v4();
 
         SqlOccurrence {
@@ -191,7 +200,7 @@ impl From<(OccurrenceWithLocation, SqlId<Event>)> for SqlOccurrence {
     }
 }
 
-#[derive(Queryable, Clone, Insertable, Debug, AsChangeset)]
+#[derive(Queryable, Clone,Identifiable, Insertable, Debug, AsChangeset)]
 #[table_name = "locations"]
 pub struct SqlLocation {
     pub id: SqlId<Location>,

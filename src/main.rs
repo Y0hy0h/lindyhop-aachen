@@ -21,7 +21,8 @@ use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
 use store::{
-    Actions, Event, Id, Location, OccurrenceWithEvent, OccurrenceWithLocation, Overview, Store,
+    Actions, Event, Id, Location, LocationWithOccurrences, OccurrenceWithEvent,
+    OccurrenceWithLocation, Overview, Store,
 };
 
 #[get("/")]
@@ -144,11 +145,21 @@ fn api_overview(store: Store) -> Json<Overview> {
     Json(store.read_all())
 }
 
+#[get("/locations_with_occurrences")]
+fn api_locations_with_occurrences(
+    store: Store,
+) -> Json<HashMap<Id<Location>, LocationWithOccurrences>> {
+    Json(store.locations_with_occurrences())
+}
+
 fn main() {
     rocket::ignite()
         .attach(Store::fairing())
         .mount("/static", StaticFiles::from("./static"))
         .mount("/", routes![index, admin_route, admin_subroute])
-        .mount("/api", routes![api_overview])
+        .mount(
+            "/api",
+            routes![api_overview, api_locations_with_occurrences],
+        )
         .launch();
 }
