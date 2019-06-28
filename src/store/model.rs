@@ -43,6 +43,7 @@ pub struct LocationWithOccurrences {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OccurrenceWithLocation {
+    #[serde(flatten)]
     pub occurrence: Occurrence,
     pub location_id: Id<Location>,
 }

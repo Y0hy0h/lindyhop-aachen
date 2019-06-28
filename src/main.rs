@@ -1,5 +1,6 @@
 #![feature(proc_macro_hygiene, decl_macro, custom_attribute)]
 
+mod api;
 mod store;
 
 #[macro_use]
@@ -17,13 +18,9 @@ use std::path::{Path, PathBuf};
 use chrono::prelude::*;
 use maud::{html, Markup, DOCTYPE};
 use rocket::response::NamedFile;
-use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
 
-use store::{
-    Actions, Event, Id, Location, LocationWithOccurrences, OccurrenceWithEvent,
-    OccurrenceWithLocation, Overview, Store,
-};
+use store::{Actions, Event, Id, Location, OccurrenceWithEvent, OccurrenceWithLocation, Store};
 
 #[get("/")]
 fn index(store: Store) -> Markup {
@@ -140,26 +137,10 @@ fn admin() -> Option<NamedFile> {
     NamedFile::open(Path::new("admin/dist/index.html")).ok()
 }
 
-#[get("/")]
-fn api_overview(store: Store) -> Json<Overview> {
-    Json(store.read_all())
-}
-
-#[get("/locations_with_occurrences")]
-fn api_locations_with_occurrences(
-    store: Store,
-) -> Json<HashMap<Id<Location>, LocationWithOccurrences>> {
-    Json(store.locations_with_occurrences())
-}
-
 fn main() {
-    rocket::ignite()
+    let rocket = rocket::ignite()
         .attach(Store::fairing())
         .mount("/static", StaticFiles::from("./static"))
-        .mount("/", routes![index, admin_route, admin_subroute])
-        .mount(
-            "/api",
-            routes![api_overview, api_locations_with_occurrences],
-        )
-        .launch();
+        .mount("/", routes![index, admin_route, admin_subroute]);
+    api::mount(rocket, "/api").launch();
 }
