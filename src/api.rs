@@ -125,8 +125,11 @@ mod events {
             filter = OccurrenceFilter::upcoming();
         }
 
-        Ok(Json(store
-            .update_event_with_occurrences(id, obj.0, filter).unwrap()))
+        Ok(Json(
+            store
+                .update_event_with_occurrences(id, obj.0, filter)
+                .unwrap(),
+        ))
     }
 
     #[delete("/<id>")]

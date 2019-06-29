@@ -290,24 +290,18 @@ impl Store {
             .expect("Loading from database failed.")
             .into_iter()
             .map(|sql_event| {
-                use db::schema::occurrences::dsl::start;
-                let mut query = SqlOccurrence::belonging_to(&sql_event).into_boxed();
-                if let Some(datetime) = filter.after {
-                    query = query.filter(start.gt(datetime));
-                }
-                if let Some(datetime) = filter.before {
-                    query = query.filter(start.lt(datetime));
-                }
-                let occurrences: Vec<OccurrenceWithLocation> = query
-                    .load::<SqlOccurrence>(&*self.0)
-                    .expect("Loading from database failed.")
-                    .into_iter()
-                    .map(|sql_occurrence| {
-                        let (_, occurrence) = sql_occurrence.into();
+                let occurrences: Vec<OccurrenceWithLocation> =
+                    SqlOccurrence::belonging_to(&sql_event)
+                        .filter(apply_occurrence_filter(&filter))
+                        .load::<SqlOccurrence>(&*self.0)
+                        .expect("Loading from database failed.")
+                        .into_iter()
+                        .map(|sql_occurrence| {
+                            let (_, occurrence) = sql_occurrence.into();
 
-                        occurrence
-                    })
-                    .collect();
+                            occurrence
+                        })
+                        .collect();
 
                 let (id, event) = sql_event.into();
 
@@ -350,15 +344,8 @@ impl Store {
             .find(SqlId::from(item_id))
             .first::<SqlEvent>(&*self.0)?;
 
-        use db::schema::occurrences::dsl::start;
-        let mut query = SqlOccurrence::belonging_to(&sql_event).into_boxed();
-        if let Some(datetime) = filter.after {
-            query = query.filter(start.gt(datetime));
-        }
-        if let Some(datetime) = filter.before {
-            query = query.filter(start.lt(datetime));
-        }
-        let occurrences: Vec<OccurrenceWithLocation> = query
+        let occurrences: Vec<OccurrenceWithLocation> = SqlOccurrence::belonging_to(&sql_event)
+            .filter(apply_occurrence_filter(&filter))
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
             .map(|sql_occurrence| {
@@ -377,7 +364,7 @@ impl Store {
         &self,
         item_id: Id<Event>,
         new_item: EventWithOccurrences,
-        filter: OccurrenceFilter
+        filter: OccurrenceFilter,
     ) -> QueryResult<EventWithOccurrences> {
         use db::SqlId;
 
@@ -385,15 +372,9 @@ impl Store {
         use db::schema::events::dsl::events;
         let sql_previous = events.find(raw_id.clone()).first::<SqlEvent>(&*self.0)?;
 
-        use db::schema::occurrences::dsl::start;
-        let mut associated_occurrences = SqlOccurrence::belonging_to(&sql_previous).into_boxed();
-        if let Some(datetime) = filter.after {
-            associated_occurrences= associated_occurrences.filter(start.gt(datetime));
-        }
-        if let Some(datetime) = filter.before {
-            associated_occurrences= associated_occurrences.filter(start.lt(datetime));
-        }
+        let associated_occurrences = SqlOccurrence::belonging_to(&sql_previous);
         let previous_occurrences: Vec<OccurrenceWithLocation> = associated_occurrences
+            .filter(apply_occurrence_filter(&filter))
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
             .map(|sql_occurrence| {
@@ -403,7 +384,8 @@ impl Store {
             })
             .collect();
 
-        diesel::delete(associated_occurrences).execute(&*self.0)?;
+        diesel::delete(associated_occurrences.filter(apply_occurrence_filter(&filter)))
+            .execute(&*self.0)?;
 
         let new_sql_item: SqlEvent = new_item.event.into();
         diesel::update(&sql_previous)
@@ -458,6 +440,33 @@ impl Store {
             occurrences,
         })
     }
+}
+
+fn apply_occurrence_filter(
+    filter: &OccurrenceFilter,
+) -> Box<
+    dyn BoxableExpression<
+        db::schema::occurrences::table,
+        diesel::sqlite::Sqlite,
+        SqlType = diesel::sql_types::Bool,
+    >,
+> {
+    use db::schema::occurrences::dsl::*;
+    let mut query: Box<
+        dyn BoxableExpression<
+            db::schema::occurrences::table,
+            diesel::sqlite::Sqlite,
+            SqlType = diesel::sql_types::Bool,
+        >,
+    > = Box::new(true.into_sql::<diesel::sql_types::Bool>());
+    if let Some(before) = filter.before {
+        query = Box::new(query.and(start.lt(before)))
+    }
+    if let Some(after) = filter.after {
+        query = Box::new(query.and(start.gt(after)))
+    }
+
+    query
 }
 
 pub struct StoreFairing;
