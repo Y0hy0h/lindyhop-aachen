@@ -4,6 +4,8 @@ language: minimal
 # See https://github.com/travis-ci/travis-ci/issues/8051#issuecomment-335517982
 if: tag is blank
 
+cache: cargo
+
 services:
   - docker
 
@@ -15,7 +17,7 @@ jobs:
         - docker run test_node
     - script:
         - docker build -q -f Dockerfile.test.rust -t test_rust .
-        - docker run test_rust
+        - docker run -v $HOME/.cargo/registry:/usr/local/cargo/registry -v $TRAVIS_BUILD_DIR/target:/rust/target test_rust
       
     - stage: build
       if: branch = master
