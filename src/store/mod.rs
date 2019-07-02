@@ -56,10 +56,10 @@ impl Store {
         StoreFairing
     }
 
-    pub fn read_all(&self) -> Overview {
+    pub fn read_all(&self, filter:&OccurrenceFilter) -> Overview {
         let locs: HashMap<Id<Location>, Location> = self.all();
         let evts: HashMap<Id<Event>, EventWithOccurrences> =
-            self.all_events_with_occurrences(OccurrenceFilter::upcoming());
+            self.all_events_with_occurrences(filter);
 
         Overview {
             locations: locs,
@@ -67,12 +67,12 @@ impl Store {
         }
     }
 
-    pub fn occurrences_by_date(&self) -> BTreeMap<NaiveDate, Vec<OccurrenceWithEvent>> {
+    pub fn occurrences_by_date(&self, filter:&OccurrenceFilter) -> BTreeMap<NaiveDate, Vec<OccurrenceWithEvent>> {
         use db::schema::events::dsl::events;
         use db::schema::occurrences::dsl::{occurrences, start};
 
         let sql_occurrences = occurrences
-            .filter(start.gt(chrono::Local::now().naive_local()))
+            .filter(apply_occurrence_filter(filter))
             .order(start.asc())
             .load::<SqlOccurrence>(&*self.0)
             .unwrap();
@@ -99,7 +99,7 @@ impl Store {
             )
     }
 
-    pub fn locations_with_occurrences(&self) -> HashMap<Id<Location>, LocationWithOccurrences> {
+    pub fn locations_with_occurrences(&self, filter:&OccurrenceFilter) -> HashMap<Id<Location>, LocationWithOccurrences> {
         use db::schema::locations::dsl::locations;
 
         locations
@@ -107,10 +107,9 @@ impl Store {
             .expect("Loading from database failed.")
             .into_iter()
             .map(|sql_location| {
-                use db::schema::occurrences::dsl::start;
                 let occurrences: HashMap<Id<Occurrence>, Occurrence> =
                     SqlOccurrence::belonging_to(&sql_location)
-                        .filter(start.gt(chrono::Local::now().naive_local()))
+                        .filter(apply_occurrence_filter(filter))
                         .load::<SqlOccurrence>(&*self.0)
                         .expect("Loading from database failed.")
                         .into_iter()
@@ -281,7 +280,7 @@ fn decode_datetime(item: FormItem) -> Option<NaiveDateTime> {
 impl Store {
     pub fn all_events_with_occurrences(
         &self,
-        filter: OccurrenceFilter,
+        filter: &OccurrenceFilter,
     ) -> HashMap<Id<Event>, EventWithOccurrences> {
         use db::schema::events::dsl::events;
 
@@ -292,7 +291,7 @@ impl Store {
             .map(|sql_event| {
                 let occurrences: Vec<OccurrenceWithLocation> =
                     SqlOccurrence::belonging_to(&sql_event)
-                        .filter(apply_occurrence_filter(&filter))
+                        .filter(apply_occurrence_filter(filter))
                         .load::<SqlOccurrence>(&*self.0)
                         .expect("Loading from database failed.")
                         .into_iter()
@@ -336,7 +335,7 @@ impl Store {
     pub fn read_event_with_occurrences(
         &self,
         item_id: Id<Event>,
-        filter: OccurrenceFilter,
+        filter: &OccurrenceFilter,
     ) -> QueryResult<EventWithOccurrences> {
         use db::schema::events::dsl::events;
         use db::SqlId;
@@ -345,7 +344,7 @@ impl Store {
             .first::<SqlEvent>(&*self.0)?;
 
         let occurrences: Vec<OccurrenceWithLocation> = SqlOccurrence::belonging_to(&sql_event)
-            .filter(apply_occurrence_filter(&filter))
+            .filter(apply_occurrence_filter(filter))
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
             .map(|sql_occurrence| {
@@ -364,7 +363,7 @@ impl Store {
         &self,
         item_id: Id<Event>,
         new_item: EventWithOccurrences,
-        filter: OccurrenceFilter,
+        filter: &OccurrenceFilter,
     ) -> QueryResult<EventWithOccurrences> {
         use db::SqlId;
 
@@ -374,7 +373,7 @@ impl Store {
 
         let associated_occurrences = SqlOccurrence::belonging_to(&sql_previous);
         let previous_occurrences: Vec<OccurrenceWithLocation> = associated_occurrences
-            .filter(apply_occurrence_filter(&filter))
+            .filter(apply_occurrence_filter(filter))
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
             .map(|sql_occurrence| {

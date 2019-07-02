@@ -20,7 +20,7 @@ use maud::{html, Markup, DOCTYPE};
 use rocket::response::NamedFile;
 use rocket_contrib::serve::StaticFiles;
 
-use store::{Actions, Event, Id, Location, OccurrenceWithEvent, OccurrenceWithLocation, Store};
+use store::{Actions, Event, Id, Location, OccurrenceWithEvent, OccurrenceWithLocation, OccurrenceFilter, Store};
 
 #[get("/")]
 fn index(store: Store) -> Markup {
@@ -39,7 +39,7 @@ fn index(store: Store) -> Markup {
                 main {
                     ol.schedule {
                         @let locations: HashMap<Id<Location>, Location> = store.all();
-                        @for occurrences_for_date in store.occurrences_by_date() {
+                        @for occurrences_for_date in store.occurrences_by_date(&OccurrenceFilter::upcoming()) {
                             li { ( render_entry(&occurrences_for_date, &locations) ) }
                         }
                     }

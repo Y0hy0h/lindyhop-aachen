@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use rocket::Rocket;
 use rocket_contrib::json::Json;
 
-use crate::store::{Id, Location, LocationWithOccurrences, Overview, Store};
+use crate::store::{Id, Location, LocationWithOccurrences, Overview, OccurrenceFilter, OccurrenceFilterError, Store};
 
 macro_rules! derive_routes {
     ($mod: ident, $type: ident) => {
@@ -84,7 +84,7 @@ mod events {
             filter = OccurrenceFilter::upcoming();
         }
         Ok(Json(HashMap::from_iter(
-            store.all_events_with_occurrences(filter),
+            store.all_events_with_occurrences(&filter),
         )))
     }
 
@@ -108,7 +108,7 @@ mod events {
         }
         Ok(Json(
             store
-                .read_event_with_occurrences(id.into(), filter)
+                .read_event_with_occurrences(id.into(), &filter)
                 .unwrap(),
         ))
     }
@@ -127,7 +127,7 @@ mod events {
 
         Ok(Json(
             store
-                .update_event_with_occurrences(id, obj.0, filter)
+                .update_event_with_occurrences(id, obj.0, &filter)
                 .unwrap(),
         ))
     }
@@ -154,14 +154,25 @@ pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
         .mount(&format!("{}/events", prefix), events::routes())
 }
 
-#[get("/")]
-fn api_overview(store: Store) -> Json<Overview> {
-    Json(store.read_all())
+#[get("/?<filter..>")]
+fn api_overview(store: Store, filter: Result<OccurrenceFilter, OccurrenceFilterError>) -> Result<Json<Overview>, OccurrenceFilterError> {
+    let mut filter = filter?;
+    if let (None, None) = (filter.before, filter.after) {
+        filter = OccurrenceFilter::upcoming();
+    }
+
+    Ok(Json(store.read_all(&filter)))
 }
 
-#[get("/locations_with_occurrences")]
+#[get("/locations_with_occurrences?<filter..>")]
 fn api_locations_with_occurrences(
     store: Store,
-) -> Json<HashMap<Id<Location>, LocationWithOccurrences>> {
-    Json(store.locations_with_occurrences())
+    filter: Result<OccurrenceFilter, OccurrenceFilterError>
+) -> Result<Json<HashMap<Id<Location>, LocationWithOccurrences>>, OccurrenceFilterError> {
+    let mut filter = filter?;
+    if let (None, None) = (filter.before, filter.after) {
+        filter = OccurrenceFilter::upcoming();
+    }
+
+    Ok(Json(store.locations_with_occurrences(&filter)))
 }
