@@ -10,20 +10,21 @@ module Utils.NaiveDateTime exposing
     , dateFromExternal
     , dateParser
     , dateTimeFuzzer
-    , fromPosix, now
     , dateTimeParser
     , day
     , decodeDateTime
     , decodeMinutes
     , encodeAsMinutes
-    , encodeDateAsString
     , encodeDateTime
+    , encodeDateTimeAsString
     , encodeTimeAsString
+    , fromPosix
     , hour
     , minute
     , minutes
     , month
     , monthNumeric
+    , now
     , setDate
     , setTime
     , timeParser
@@ -305,8 +306,12 @@ decodeMinutes =
 
 encodeDateTime : DateTime -> Encode.Value
 encodeDateTime dateTime =
-    Encode.string
-        (encodeDateAsString dateTime ++ "T" ++ encodeTimeAsString dateTime)
+    Encode.string (encodeDateTimeAsString dateTime)
+
+
+encodeDateTimeAsString : DateTime -> String
+encodeDateTimeAsString dateTime =
+    encodeDateAsString dateTime ++ "T" ++ encodeTimeAsString dateTime
 
 
 encodeDateAsString : DateTime -> String

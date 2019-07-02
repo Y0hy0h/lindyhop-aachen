@@ -113,7 +113,7 @@ queryAll =
 
 queryUpcoming : Naive.DateTime -> Queries
 queryUpcoming today =
-    [ Url.Builder.string "after" (Naive.encodeDateAsString today) ]
+    [ Url.Builder.string "after" (Naive.encodeDateTimeAsString today) ]
 
 
 apiUrl : List String -> Queries -> String
@@ -122,7 +122,7 @@ apiUrl path queries =
         base =
             [ "api" ]
     in
-    Url.Builder.absolute (base ++ path) []
+    Url.Builder.absolute (base ++ path) queries
 
 
 type HttpMethod
