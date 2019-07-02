@@ -10,6 +10,7 @@ module Utils.NaiveDateTime exposing
     , dateFromExternal
     , dateParser
     , dateTimeFuzzer
+    , fromPosix, now
     , dateTimeParser
     , day
     , decodeDateTime
@@ -35,6 +36,7 @@ import Fuzz
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Parser exposing ((|.), (|=), Parser, end, symbol)
+import Task exposing (Task)
 import Time
 import Utils.Format exposing (padInt)
 
@@ -185,6 +187,24 @@ minutes raw =
 dateFromExternal : External.Date -> Date
 dateFromExternal external =
     Date { year = External.year external, month = External.month external, day = External.day external }
+
+
+fromPosix : Time.Zone -> Time.Posix -> DateTime
+fromPosix zone posix =
+    DateTime (Date { year = Time.toYear zone posix, month = Time.toMonth zone posix, day = Time.toDay zone posix })
+        (Time { hour = Time.toHour zone posix, minute = Time.toMinute zone posix })
+
+
+now : Task x DateTime
+now =
+    Task.map2
+        Tuple.pair
+        Time.now
+        Time.here
+        |> Task.map
+            (\( posix, zone ) ->
+                fromPosix zone posix
+            )
 
 
 

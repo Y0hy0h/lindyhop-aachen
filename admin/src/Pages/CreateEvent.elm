@@ -58,11 +58,11 @@ type alias LoadModel =
     { key : Browser.Key }
 
 
-init : Browser.Key -> ( LoadModel, Cmd LoadMsg )
-init key =
+init : Browser.Key -> Naive.DateTime -> ( LoadModel, Cmd LoadMsg )
+init key today =
     let
         fetchEvents =
-            Events.fetchStore FetchedEvents
+            Events.fetchStore today FetchedEvents
     in
     ( LoadModel key, fetchEvents )
 

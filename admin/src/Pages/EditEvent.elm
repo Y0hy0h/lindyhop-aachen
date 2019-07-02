@@ -219,11 +219,11 @@ type alias LoadModel =
     }
 
 
-init : String -> ( LoadModel, Cmd LoadMsg )
-init rawId =
+init : Naive.DateTime -> String -> ( LoadModel, Cmd LoadMsg )
+init today rawId =
     let
         fetchEventsMsg =
-            Events.fetchStore FetchedEvents
+            Events.fetchStore today FetchedEvents
     in
     ( LoadModel rawId, fetchEventsMsg )
 

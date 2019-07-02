@@ -16,6 +16,7 @@ import Http
 import IdDict exposing (encodeIdForUrl)
 import Routes
 import Time
+import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
 
 
@@ -28,11 +29,11 @@ type alias LoadModel =
     {}
 
 
-init : ( LoadModel, Cmd LoadMsg )
-init =
+init : Naive.DateTime -> ( LoadModel, Cmd LoadMsg )
+init today =
     let
         fetchEvents =
-            Events.fetchStore FetchedEvents
+            Events.fetchStore today FetchedEvents
     in
     ( LoadModel, fetchEvents )
 

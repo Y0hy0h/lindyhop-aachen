@@ -102,8 +102,22 @@ mapEvents mapping store =
 -- Init
 
 
-apiUrl : List String -> String
-apiUrl path =
+type alias Queries =
+    List Url.Builder.QueryParameter
+
+
+queryAll : Queries
+queryAll =
+    []
+
+
+queryUpcoming : Naive.DateTime -> Queries
+queryUpcoming today =
+    [ Url.Builder.string "after" (Naive.encodeDateAsString today) ]
+
+
+apiUrl : List String -> Queries -> String
+apiUrl path queries =
     let
         base =
             [ "api" ]
@@ -137,15 +151,16 @@ stringFromHttpMethod method =
 apiRequest :
     { method : HttpMethod
     , url : List String
+    , queries : Queries
     , body : Maybe Encode.Value
     , expect : Http.Expect msg
     }
     -> Cmd msg
-apiRequest { method, url, body, expect } =
+apiRequest { method, url, queries, body, expect } =
     Http.request
         { method = stringFromHttpMethod method
         , headers = []
-        , url = apiUrl url
+        , url = apiUrl url queries
         , body =
             case body of
                 Just json ->
@@ -161,11 +176,12 @@ apiRequest { method, url, body, expect } =
 
 {-| The HTTP command to fetch the events.
 -}
-fetchStore : (Result Http.Error Store -> msg) -> Cmd msg
-fetchStore toMsg =
+fetchStore : Naive.DateTime -> (Result Http.Error Store -> msg) -> Cmd msg
+fetchStore today toMsg =
     apiRequest
         { method = Get
         , url = [ "" ]
+        , queries = queryUpcoming today
         , body = Nothing
         , expect = Http.expectJson toMsg decodeStore
         }
@@ -176,6 +192,7 @@ createEvent event toMsg =
     apiRequest
         { method = Post
         , url = [ "events" ]
+        , queries = queryAll
         , body = Just <| encodeEvent event
         , expect = Http.expectJson toMsg decodeUnsafeId
         }
@@ -186,6 +203,7 @@ readEvent locs id toMsg =
     apiRequest
         { method = Get
         , url = [ "events", IdDict.encodeIdForUrl id ]
+        , queries = queryAll
         , body = Nothing
         , expect = Http.expectJson toMsg (decodeEvent locs)
         }
@@ -196,6 +214,7 @@ updateEvent id event toMsg =
     apiRequest
         { method = Put
         , url = [ "events", IdDict.encodeIdForUrl id ]
+        , queries = queryAll
         , body = Just <| encodeEvent event
         , expect = Http.expectWhatever toMsg
         }
@@ -206,6 +225,7 @@ deleteEvent locs id toMsg =
     apiRequest
         { method = Delete
         , url = [ "events", IdDict.encodeIdForUrl id ]
+        , queries = queryAll
         , body = Nothing
         , expect = Http.expectJson toMsg (decodeEvent locs)
         }
@@ -216,6 +236,7 @@ createLocation location toMsg =
     apiRequest
         { method = Post
         , url = [ "locations" ]
+        , queries = queryAll
         , body = Just <| encodeLocation location
         , expect = Http.expectJson toMsg decodeUnsafeId
         }
@@ -226,6 +247,7 @@ readLocation id toMsg =
     apiRequest
         { method = Get
         , url = [ "locations", IdDict.encodeIdForUrl id ]
+        , queries = queryAll
         , body = Nothing
         , expect = Http.expectJson toMsg decodeLocation
         }
@@ -236,6 +258,7 @@ updateLocation id location toMsg =
     apiRequest
         { method = Put
         , url = [ "locations", IdDict.encodeIdForUrl id ]
+        , queries = queryAll
         , body = Just <| encodeLocation location
         , expect = Http.expectWhatever toMsg
         }
@@ -246,6 +269,7 @@ deleteLocation id toMsg =
     apiRequest
         { method = Delete
         , url = [ "locations", IdDict.encodeIdForUrl id ]
+        , queries = queryAll
         , body = Nothing
         , expect = Http.expectJson toMsg decodeLocation
         }
