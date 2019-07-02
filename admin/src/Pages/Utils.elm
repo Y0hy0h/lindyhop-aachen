@@ -129,9 +129,11 @@ inputString value =
 inputDateTime : Naive.DateTime -> Input { date : String, time : String } Naive.DateTime
 inputDateTime dateTime =
     let
-        (date, time) = Naive.split dateTime
+        ( date, time ) =
+            Naive.split dateTime
+
         value =
-            { date = Naive.encodeDateAsString date, time = Naive.encodeTimeAsString time}
+            { date = Naive.encodeDateAsString date, time = Naive.encodeTimeAsString time }
     in
     buildInput value dateTimeValidator
 
