@@ -1,0 +1,9 @@
+FROM node:lts AS node
+
+WORKDIR node
+
+COPY ./package.json ./package.json
+RUN npm install
+COPY ./admin ./admin
+
+CMD [ "npm", "run", "test" ]
