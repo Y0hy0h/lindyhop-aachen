@@ -13,10 +13,10 @@ jobs:
   include:
     - stage: test
       script:
-        - docker build -q -f Dockerfile.test.node -t test_node .
+        - docker build -f Dockerfile.test.node -t test_node .
         - docker run test_node
     - script:
-        - docker build -q -f Dockerfile.test.rust -t test_rust .
+        - docker build -f Dockerfile.test.rust -t test_rust .
         - docker run -v $HOME/.cargo/registry:/usr/local/cargo/registry -v $TRAVIS_BUILD_DIR/target:/rust/target test_rust
       
     - stage: build
