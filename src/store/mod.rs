@@ -56,7 +56,7 @@ impl Store {
         StoreFairing
     }
 
-    pub fn read_all(&self, filter:&OccurrenceFilter) -> Overview {
+    pub fn read_all(&self, filter: &OccurrenceFilter) -> Overview {
         let locs: HashMap<Id<Location>, Location> = self.all();
         let evts: HashMap<Id<Event>, EventWithOccurrences> =
             self.all_events_with_occurrences(filter);
@@ -67,7 +67,10 @@ impl Store {
         }
     }
 
-    pub fn occurrences_by_date(&self, filter:&OccurrenceFilter) -> BTreeMap<NaiveDate, Vec<OccurrenceWithEvent>> {
+    pub fn occurrences_by_date(
+        &self,
+        filter: &OccurrenceFilter,
+    ) -> BTreeMap<NaiveDate, Vec<OccurrenceWithEvent>> {
         use db::schema::events::dsl::events;
         use db::schema::occurrences::dsl::{occurrences, start};
 
@@ -99,7 +102,10 @@ impl Store {
             )
     }
 
-    pub fn locations_with_occurrences(&self, filter:&OccurrenceFilter) -> HashMap<Id<Location>, LocationWithOccurrences> {
+    pub fn locations_with_occurrences(
+        &self,
+        filter: &OccurrenceFilter,
+    ) -> HashMap<Id<Location>, LocationWithOccurrences> {
         use db::schema::locations::dsl::locations;
 
         locations
@@ -257,10 +263,7 @@ impl<'q> FromQuery<'q> for OccurrenceFilter {
             .map(|item| decode_datetime(item).ok_or(InvalidBeforeDate))
             .transpose()?;
         let after: Option<NaiveDateTime> = query
-            .find(|i| {
-                println!("{:?}", i);
-                i.key == "after"
-            })
+            .find(|i| i.key == "after")
             .map(|item| decode_datetime(item).ok_or(InvalidAfterDate))
             .transpose()?;
 
@@ -273,7 +276,6 @@ impl<'q> FromQuery<'q> for OccurrenceFilter {
 }
 
 fn decode_datetime(item: FormItem) -> Option<NaiveDateTime> {
-    println!("{:?}", item);
     chrono::NaiveDateTime::parse_from_str(&item.value.url_decode_lossy(), "%Y-%m-%dT%H:%M:%S").ok()
 }
 
