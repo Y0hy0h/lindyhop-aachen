@@ -15,6 +15,7 @@ module Utils.NaiveDateTime exposing
     , decodeDateTime
     , decodeMinutes
     , encodeAsMinutes
+    , encodeDateAsString
     , encodeDateTime
     , encodeDateTimeAsString
     , encodeTimeAsString
@@ -27,6 +28,7 @@ module Utils.NaiveDateTime exposing
     , now
     , setDate
     , setTime
+    , split
     , timeParser
     , with
     , year
@@ -185,6 +187,11 @@ minutes raw =
         Nothing
 
 
+split : DateTime -> ( Date, Time )
+split (DateTime date time) =
+    ( date, time )
+
+
 dateFromExternal : External.Date -> Date
 dateFromExternal external =
     Date { year = External.year external, month = External.month external, day = External.day external }
@@ -311,32 +318,36 @@ encodeDateTime dateTime =
 
 encodeDateTimeAsString : DateTime -> String
 encodeDateTimeAsString dateTime =
-    encodeDateAsString dateTime ++ "T" ++ encodeTimeAsString dateTime
+    let
+        ( date, time ) =
+            split dateTime
+    in
+    encodeDateAsString date ++ "T" ++ encodeTimeAsString time
 
 
-encodeDateAsString : DateTime -> String
-encodeDateAsString dateTime =
+encodeDateAsString : Date -> String
+encodeDateAsString (Date date) =
     let
         y =
-            String.fromInt <| year dateTime
+            String.fromInt <| date.year
 
         m =
-            padInt <| monthNumeric dateTime
+            padInt <| numberFromMonth date.month
 
         d =
-            padInt <| day dateTime
+            padInt <| date.day
     in
     y ++ "-" ++ m ++ "-" ++ d
 
 
-encodeTimeAsString : DateTime -> String
-encodeTimeAsString dateTime =
+encodeTimeAsString : Time -> String
+encodeTimeAsString (Time time) =
     let
         h =
-            padInt <| hour dateTime
+            padInt <| time.hour
 
         min =
-            padInt <| minute dateTime
+            padInt <| time.minute
     in
     h ++ ":" ++ min ++ ":00"
 
