@@ -1,6 +1,6 @@
 # Lindy Hop Aachen
 
-[![Build Status](https://travis-ci.org/Y0hy0h/lindyhop-aachen.svg?branch=master)](https://travis-ci.org/Y0hy0h/lindyhop-aachen)
+[![Build Status](https://travis-ci.com/Y0hy0h/lindyhop-aachen.svg?branch=master)](https://travis-ci.com/Y0hy0h/lindyhop-aachen)
 
 A website about all things Lindy Hop in Aachen.
 
