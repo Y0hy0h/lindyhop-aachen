@@ -216,7 +216,7 @@ viewSelection lbl (Input val validator) options inputMsg =
                 optionsHtml
 
             else
-                [ Html.option [] [ text "Bitte wählen..." ] ] ++ optionsHtml
+                [ Html.option [] [ text "Bitte wählen...." ] ] ++ optionsHtml
     in
     labeled lbl
         [ Html.select [ value val, onInput inputMsg ] optionsWithEmpty
