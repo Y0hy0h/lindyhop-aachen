@@ -28,7 +28,7 @@ module Pages.Utils exposing
 import Css exposing (center, column, em, flexStart, none, row, zero)
 import Css.Global as Css
 import Html.Styled as Html exposing (Html, a, div, input, label, li, nav, ol, text, textarea)
-import Html.Styled.Attributes exposing (css, disabled, href, type_, value)
+import Html.Styled.Attributes as Attributes exposing (css, disabled, href, type_, value)
 import Html.Styled.Events exposing (onClick, onInput)
 import Parser
 import Routes exposing (Route)
@@ -191,7 +191,7 @@ viewInputNumber lbl (Input val validator) inputMsg =
 viewTextArea : String -> In a -> (String -> msg) -> Html msg
 viewTextArea lbl (Input val validator) inputMsg =
     labeled lbl
-        ([ textarea [ value val, onInput inputMsg ] []
+        ([ textarea [ value val, onInput inputMsg, Attributes.cols 72, Attributes.rows 10 ] []
          ]
             ++ viewErrors (Input val validator)
         )
@@ -205,7 +205,7 @@ viewSelection lbl (Input val validator) options inputMsg =
                 (\option ->
                     let
                         selected =
-                            Html.Styled.Attributes.selected (option.value == val)
+                            Attributes.selected (option.value == val)
                     in
                     Html.option [ value option.value, selected ] [ text option.name ]
                 )
