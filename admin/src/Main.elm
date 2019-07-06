@@ -2,7 +2,7 @@ module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Browser
-import Css exposing (auto, em, pre, zero)
+import Css exposing (auto, em, pct, pre, zero)
 import Css.Global as Css
 import Events exposing (Event, Events, Location, Occurrence)
 import Html.Styled as Html exposing (Html, a, div, h1, h2, label, li, ol, p, text)
@@ -45,6 +45,7 @@ type Model
     = Starting Browser.Key Route StartingModel
     | Error Browser.Key
     | Loaded LoadedModel RouteModel
+    | Loading LoadedModel RouteModel Route StartingModel
 
 
 type StartingModel
@@ -71,10 +72,12 @@ keyFromModel model =
         Loaded { key } _ ->
             key
 
+        Loading { key } _ _ _ ->
+            key
+
 
 type RouteModel
-    = LoadingRoute
-    | NotFound
+    = NotFound
     | Overview Pages.Overview.Model
     | CreateEvent Pages.CreateEvent.Model
     | EditEvent Pages.EditEvent.Model
@@ -91,11 +94,13 @@ init flags url key =
     let
         route =
             Routes.toRoute url
-
-        fetchToday =
-            Naive.now
     in
-    ( Starting key route LoadingToday, Task.perform FetchedToday fetchToday )
+    ( Starting key route LoadingToday, fetchToday )
+
+
+fetchToday : Cmd Msg
+fetchToday =
+    Task.perform FetchedToday Naive.now
 
 
 initWith : Browser.Key -> Naive.DateTime -> Events.Store -> Route -> ( Model, Cmd Msg )
@@ -135,6 +140,9 @@ update msg model =
                 Starting key route LoadingToday ->
                     ( Starting key route (LoadingStore today), Events.fetchStore today FetchedStore )
 
+                Loading loaded routeModel route LoadingToday ->
+                    ( Loading loaded routeModel route (LoadingStore today), Events.fetchStore today FetchedStore )
+
                 _ ->
                     ( model, Cmd.none )
 
@@ -147,6 +155,14 @@ update msg model =
 
                         Err _ ->
                             ( Error key, Cmd.none )
+
+                Loading loaded routeModel route (LoadingStore today) ->
+                    case result of
+                        Ok store ->
+                            load (LoadedModel loaded.key today store) route
+
+                        Err _ ->
+                            ( Error loaded.key, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -165,14 +181,17 @@ update msg model =
 
         UrlChanged url ->
             case model of
-                Starting key route loadState ->
+                Starting key _ loadState ->
                     ( Starting key (Routes.toRoute url) loadState, Cmd.none )
 
                 Error key ->
                     init () url key
 
-                Loaded loaded _ ->
-                    load loaded (Routes.toRoute url)
+                Loaded loaded routeModel ->
+                    ( Loading loaded routeModel (Routes.toRoute url) LoadingToday, fetchToday )
+
+                Loading loaded routeModel _ loadState ->
+                    ( Loading loaded routeModel (Routes.toRoute url) loadState, Cmd.none )
 
         CreateEventMsg subMsg ->
             let
@@ -268,9 +287,13 @@ updateLoaded updater model =
         Error _ ->
             ( model, Cmd.none )
 
-        Loaded loaded route ->
-            updater route
+        Loaded loaded routeModel ->
+            updater routeModel
                 |> Tuple.mapFirst (Loaded loaded)
+
+        Loading loaded routeModel route loadState ->
+            updater routeModel
+                |> Tuple.mapFirst (\newRouteModel -> Loading loaded newRouteModel route loadState)
 
 
 errorMessageFromHttpError : Http.Error -> String
@@ -303,9 +326,6 @@ view model =
             let
                 render loaded =
                     case loaded of
-                        LoadingRoute ->
-                            viewLoading
-
                         NotFound ->
                             viewNotFound
 
@@ -335,8 +355,12 @@ view model =
                 Error _ ->
                     viewError
 
-                Loaded _ route ->
-                    render route
+                Loaded _ routeModel ->
+                    render routeModel
+
+                Loading _ routeModel _ _ ->
+                    loadIndicator
+                        ++ render routeModel
 
         mainStyle =
             Css.global
@@ -356,6 +380,22 @@ view model =
 viewLoading : List (Html Msg)
 viewLoading =
     [ text "Loading..." ]
+
+
+loadIndicator : List (Html msg)
+loadIndicator =
+    [ div
+        [ css
+            [ Css.position Css.absolute
+            , Css.top zero
+            , Css.left zero
+            , Css.height (em 0.1)
+            , Css.width (Css.vw 100)
+            , Css.backgroundColor (Css.rgb 200 150 0)
+            ]
+        ]
+        []
+    ]
 
 
 viewError : List (Html Msg)
