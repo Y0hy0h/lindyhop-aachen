@@ -680,13 +680,6 @@ viewEditOccurrence locations index occurrence =
           div []
             ([ Utils.viewSelection "Ort" occurrence.locationId options (occMsg << InputLocationId)
              ]
-                ++ (case extract occurrence.locationId of
-                        Just id ->
-                            [ a [ href <| Routes.toRelativeUrl <| Routes.EditLocation (IdDict.encodeIdForUrl id) ] [ text "Bearbeiten" ] ]
-
-                        Nothing ->
-                            []
-                   )
             )
         , Utils.button "Löschen" (occMsg InputClickedDelete)
         ]
