@@ -4,14 +4,15 @@ module Pages.Overview exposing
     , view
     )
 
-import Css exposing (em, inherit, none, zero)
+import Css exposing (em, inherit, none, px, zero)
 import Css.Global as Css
 import Events exposing (Event, Location, Locations, Occurrence)
-import Html.Styled exposing (Html, a, div, h1, h2, li, ol, text)
+import Html.Styled exposing (Html, a, div, h1, h2, h3, li, ol, p, span, text)
 import Html.Styled.Attributes exposing (css, href)
 import Http
 import IdDict exposing (encodeIdForUrl)
 import Routes
+import String.Extra as String
 import Time
 import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
@@ -101,23 +102,51 @@ viewEvent locations event =
         occurrencesPreview =
             List.take max event.occurrences
 
-        doesOverflow =
-            List.length event.occurrences > max
+        remaining =
+            List.length event.occurrences - List.length occurrencesPreview
 
         occurrenceListItems =
             List.map (\occurrence -> li [] [ viewOccurrence locations occurrence ]) occurrencesPreview
 
-        listItems =
-            occurrenceListItems
-                ++ (if doesOverflow then
-                        [ li [] [ text "…" ] ]
+        hintStyle =
+            Css.fontStyle Css.italic
 
-                    else
-                        []
-                   )
+        listItems =
+            if List.length occurrenceListItems == 0 then
+                [ span [ css [ hintStyle ] ] [ text "Keine Termine." ] ]
+
+            else
+                occurrenceListItems
+                    ++ (if remaining > 0 then
+                            let
+                                pluralized =
+                                    if remaining > 1 then
+                                        "weitere Termine"
+
+                                    else
+                                        "weiterer Termin"
+                            in
+                            [ li [ css [ hintStyle ] ] [ text <| "(+" ++ String.fromInt remaining ++ " " ++ pluralized ++ ")" ] ]
+
+                        else
+                            []
+                       )
+
+        shortenedDescription =
+            String.softEllipsis 100 event.description
     in
-    div []
-        [ text event.title
+    div
+        [ css
+            [ Css.property "display" "grid"
+            , Css.property "grid-template-columns" "repeat(auto-fit, minmax(6em, 1fr))"
+            , itemBoxStyle
+            ]
+        ]
+        [ div []
+            [ h3 [ css [itemHeadingStyle ] ] [ text event.title ]
+            , p [] [ text event.teaser ]
+            , p [] [ text shortenedDescription ]
+            ]
         , ol [ css [ listStyle, Css.paddingLeft (em 1) ] ] listItems
         ]
 
@@ -134,6 +163,21 @@ viewOccurrence locations occurrence =
 
 viewLocation : Location -> Html msg
 viewLocation location =
-    div []
-        [ text <| location.name ++ " (" ++ location.address ++ ")"
+    div [css[itemBoxStyle]]
+        [ h3 [css[itemHeadingStyle]] [text <| location.name]
+        , p [] [text location.address]
         ]
+
+
+itemBoxStyle : Css.Style
+itemBoxStyle =
+    Css.batch
+        [ Css.border3 (px 1) Css.solid (Css.rgb 0 0 0)
+        , Css.padding (em 1)
+        ]
+
+itemHeadingStyle : Css.Style
+itemHeadingStyle =
+    Css.batch [
+ Css.margin zero, Css.marginBottom (em 1)
+    ]
