@@ -3,9 +3,6 @@ module Pages.EditEvent exposing
     , EventInput
     , InputModel
     , InputMsg
-    , LoadError(..)
-    , LoadModel
-    , LoadMsg
     , Model
     , Msg
     , eventFromInputs
@@ -13,7 +10,6 @@ module Pages.EditEvent exposing
     , initBatchAddModel
     , update
     , updateInputs
-    , updateLoad
     , view
     , viewEditEvent
     )
@@ -55,9 +51,15 @@ import Utils.TimeFormat as TimeFormat
 import Utils.Validate as Validate exposing (Validator)
 
 
-type alias Model =
+type Model
+    = Valid ModelData
+    | Invalid String
+
+
+type alias ModelData =
     { eventId : Id Event
     , event : Event
+    , today : Naive.DateTime
     , inputs : InputModel
     , locations : Locations
     }
@@ -214,22 +216,8 @@ locationIdValidator locations =
         )
 
 
-type alias LoadModel =
-    { rawId : String
-    }
-
-
-init : Naive.DateTime -> String -> ( LoadModel, Cmd LoadMsg )
-init today rawId =
-    let
-        fetchEventsMsg =
-            Events.fetchStore today FetchedEvents
-    in
-    ( LoadModel rawId, fetchEventsMsg )
-
-
-fromEvents : String -> Events.Store -> Maybe ( Model, Cmd Msg )
-fromEvents rawId store =
+init : Naive.DateTime -> Events.Store -> String -> ( Model, Cmd Msg )
+init today store rawId =
     let
         events =
             Events.events store
@@ -250,12 +238,14 @@ fromEvents rawId store =
                     loadedModel =
                         { eventId = id
                         , event = event
+                        , today = today
                         , locations = locations
                         , inputs = inputModel
                         }
                 in
-                ( loadedModel, Cmd.map Input inputMsg )
+                ( Valid loadedModel, Cmd.map Input inputMsg )
             )
+        |> Maybe.withDefault ( Invalid rawId, Cmd.none )
 
 
 inputModelFromEvents : Locations -> Event -> ( InputModel, Cmd InputMsg )
@@ -270,27 +260,6 @@ inputModelFromEvents locations event =
             }
     in
     ( model, batchAddMsg )
-
-
-type LoadMsg
-    = FetchedEvents (Result Http.Error Events.Store)
-
-
-type LoadError
-    = Http Http.Error
-    | InvalidId String
-
-
-updateLoad : LoadMsg -> LoadModel -> Result LoadError ( Model, Cmd Msg )
-updateLoad msg model =
-    case msg of
-        FetchedEvents result ->
-            Result.mapError Http result
-                |> Result.andThen
-                    (\events ->
-                        fromEvents model.rawId events
-                            |> Result.fromMaybe (InvalidId model.rawId)
-                    )
 
 
 type Msg
@@ -337,6 +306,16 @@ type BatchAddInputMsg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    case model of
+        Valid data ->
+            updateModelData msg data |> Tuple.mapFirst Valid
+
+        Invalid _ ->
+            ( model, Cmd.none )
+
+
+updateModelData : Msg -> ModelData -> ( ModelData, Cmd Msg )
+updateModelData msg model =
     case msg of
         Input inputMsg ->
             let
@@ -515,6 +494,16 @@ updateBatchAddInput msg input =
 
 view : Model -> List (Html Msg)
 view model =
+    case model of
+        Valid data ->
+            viewModelData data
+
+        Invalid rawId ->
+            viewInvalid rawId
+
+
+viewModelData : ModelData -> List (Html Msg)
+viewModelData model =
     [ Utils.breadcrumbs [ Routes.Overview ] (Routes.EditEvent <| IdDict.encodeIdForUrl model.eventId) ]
         ++ (List.map (Html.map Input) <| viewEditEvent model.locations model.inputs)
         ++ [ div [ css [ Css.displayFlex, Css.flexDirection row ] ]
@@ -627,7 +616,7 @@ viewBatchAdd locations input =
     ]
 
 
-changed : Model -> Bool
+changed : ModelData -> Bool
 changed model =
     eventFromInputs model.locations model.inputs.eventInputs
         |> Maybe.map (\newEvent -> newEvent /= model.event)
@@ -701,3 +690,8 @@ viewEditOccurrence locations index occurrence =
             )
         , Utils.button "Löschen" (occMsg InputClickedDelete)
         ]
+
+
+viewInvalid : String -> List (Html Msg)
+viewInvalid rawId =
+    [ text <| "The id '" ++ rawId ++ "' is invalid." ]

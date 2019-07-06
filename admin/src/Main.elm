@@ -42,40 +42,44 @@ main =
 
 
 type Model
-    = Starting Browser.Key Route
-    | Loaded Browser.Key Naive.DateTime RouteModel
-    | Loading Browser.Key Naive.DateTime RouteModel RouteLoadModel
+    = Starting Browser.Key Route StartingModel
+    | Error Browser.Key
+    | Loaded LoadedModel RouteModel
+
+
+type StartingModel
+    = LoadingToday
+    | LoadingStore Naive.DateTime
+
+
+type alias LoadedModel =
+    { key : Browser.Key
+    , today : Naive.DateTime
+    , store : Events.Store
+    }
 
 
 keyFromModel : Model -> Browser.Key
 keyFromModel model =
     case model of
-        Starting key _ ->
+        Starting key _ _ ->
             key
 
-        Loaded key _ _ ->
+        Error key ->
             key
 
-        Loading key _ _ _ ->
+        Loaded { key } _ ->
             key
 
 
 type RouteModel
     = LoadingRoute
-    | ErrorLoading String
     | NotFound
     | Overview Pages.Overview.Model
     | CreateEvent Pages.CreateEvent.Model
     | EditEvent Pages.EditEvent.Model
     | CreateLocation Pages.CreateLocation.Model
     | EditLocation Pages.EditLocation.Model
-
-
-type RouteLoadModel
-    = OverviewLoad Pages.Overview.LoadModel
-    | CreateEventLoad Pages.CreateEvent.LoadModel
-    | EditEventLoad Pages.EditEvent.LoadModel
-    | EditLocationLoad Pages.EditLocation.LoadModel
 
 
 
@@ -91,12 +95,12 @@ init flags url key =
         fetchToday =
             Naive.now
     in
-    ( Starting key route, Task.perform FetchedToday fetchToday )
+    ( Starting key route LoadingToday, Task.perform FetchedToday fetchToday )
 
 
-initWith : Browser.Key -> Naive.DateTime -> Route -> ( Model, Cmd Msg )
-initWith key today route =
-    load today (Loaded key today LoadingRoute) route
+initWith : Browser.Key -> Naive.DateTime -> Events.Store -> Route -> ( Model, Cmd Msg )
+initWith key today store route =
+    load (LoadedModel key today store) route
 
 
 subscriptions : Model -> Sub Msg
@@ -111,15 +115,12 @@ subscriptions model =
 type Msg
     = NoOp
     | FetchedToday Naive.DateTime
+    | FetchedStore (Result Http.Error Events.Store)
     | LinkClicked Browser.UrlRequest
     | UrlChanged Url
-    | OverviewLoadMsg Pages.Overview.LoadMsg
-    | CreateEventLoadMsg Pages.CreateEvent.LoadMsg
     | CreateEventMsg Pages.CreateEvent.Msg
-    | EditEventLoadMsg Pages.EditEvent.LoadMsg
     | EditEventMsg Pages.EditEvent.Msg
     | CreateLocationMsg Pages.CreateLocation.Msg
-    | EditLocationLoadMsg Pages.EditLocation.LoadMsg
     | EditLocationMsg Pages.EditLocation.Msg
 
 
@@ -131,8 +132,21 @@ update msg model =
 
         FetchedToday today ->
             case model of
-                Starting key route ->
-                    load today (Loaded key today LoadingRoute) route
+                Starting key route LoadingToday ->
+                    ( Starting key route (LoadingStore today), Events.fetchStore today FetchedStore )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        FetchedStore result ->
+            case model of
+                Starting key route (LoadingStore today) ->
+                    case result of
+                        Ok store ->
+                            load (LoadedModel key today store) route
+
+                        Err _ ->
+                            ( Error key, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -151,40 +165,14 @@ update msg model =
 
         UrlChanged url ->
             case model of
-                Starting key route ->
-                    ( Starting key (Routes.toRoute url), Cmd.none )
+                Starting key route loadState ->
+                    ( Starting key (Routes.toRoute url) loadState, Cmd.none )
 
-                Loaded _ today _ ->
-                    load today model (Routes.toRoute url)
+                Error key ->
+                    init () url key
 
-                Loading _ today _ _ ->
-                    load today model (Routes.toRoute url)
-
-        OverviewLoadMsg subMsg ->
-            case model of
-                Loading key today loaded (OverviewLoad subModel) ->
-                    case Pages.Overview.updateLoad subMsg subModel of
-                        Ok newSubModel ->
-                            ( Loaded key today (Overview newSubModel), Cmd.none )
-
-                        Err error ->
-                            ( Loaded key today (ErrorLoading <| errorMessageFromHttpError error), Cmd.none )
-
-                _ ->
-                    ( model, Cmd.none )
-
-        CreateEventLoadMsg subMsg ->
-            case model of
-                Loading key today loaded (CreateEventLoad subModel) ->
-                    case Pages.CreateEvent.updateLoad subMsg subModel of
-                        Ok ( newSubModel, newSubMsg ) ->
-                            ( Loaded key today (CreateEvent newSubModel), Cmd.map CreateEventMsg newSubMsg )
-
-                        Err error ->
-                            ( Loaded key today (ErrorLoading <| errorMessageFromHttpError error), Cmd.none )
-
-                _ ->
-                    ( model, Cmd.none )
+                Loaded loaded _ ->
+                    load loaded (Routes.toRoute url)
 
         CreateEventMsg subMsg ->
             let
@@ -198,28 +186,6 @@ update msg model =
                             ( routeModel, Cmd.none )
             in
             updateLoaded udpater model
-
-        EditEventLoadMsg subMsg ->
-            case model of
-                Loading key today loaded (EditEventLoad subModel) ->
-                    case Pages.EditEvent.updateLoad subMsg subModel of
-                        Ok ( newSubModel, newSubMsg ) ->
-                            ( Loaded key today (EditEvent newSubModel), Cmd.map EditEventMsg newSubMsg )
-
-                        Err error ->
-                            let
-                                errorMessage =
-                                    case error of
-                                        Pages.EditEvent.Http httpError ->
-                                            errorMessageFromHttpError httpError
-
-                                        Pages.EditEvent.InvalidId id ->
-                                            "The id " ++ id ++ " is invalid."
-                            in
-                            ( Loaded key today (ErrorLoading errorMessage), Cmd.none )
-
-                _ ->
-                    ( model, Cmd.none )
 
         EditEventMsg subMsg ->
             let
@@ -247,28 +213,6 @@ update msg model =
             in
             updateLoaded udpater model
 
-        EditLocationLoadMsg subMsg ->
-            case model of
-                Loading key today loaded (EditLocationLoad subModel) ->
-                    case Pages.EditLocation.updateLoad subMsg subModel of
-                        Ok newSubModel ->
-                            ( Loaded key today (EditLocation newSubModel), Cmd.none )
-
-                        Err error ->
-                            let
-                                errorMessage =
-                                    case error of
-                                        Pages.EditLocation.Http httpError ->
-                                            errorMessageFromHttpError httpError
-
-                                        Pages.EditLocation.InvalidId id ->
-                                            "The id " ++ id ++ " is invalid."
-                            in
-                            ( Loaded key today (ErrorLoading errorMessage), Cmd.none )
-
-                _ ->
-                    ( model, Cmd.none )
-
         EditLocationMsg subMsg ->
             let
                 udpater routeModel =
@@ -283,71 +227,50 @@ update msg model =
             updateLoaded udpater model
 
 
-load : Naive.DateTime -> Model -> Route -> ( Model, Cmd Msg )
-load today model route =
-    let
-        key =
-            keyFromModel model
-    in
+load : LoadedModel -> Route -> ( Model, Cmd Msg )
+load loaded route =
     case route of
         Routes.NotFound ->
-            ( Loaded key today <| NotFound, Cmd.none )
+            ( wrapModel loaded (\_ -> NotFound) (), Cmd.none )
 
         Routes.Overview ->
-            Pages.Overview.init today
-                |> wrapLoadModel model OverviewLoad OverviewLoadMsg
+            ( wrapModel loaded Overview <| Pages.Overview.init loaded.store, Cmd.none )
 
         Routes.CreateEvent ->
-            Pages.CreateEvent.init key today
-                |> wrapLoadModel model CreateEventLoad CreateEventLoadMsg
+            wrap loaded CreateEvent CreateEventMsg <| Pages.CreateEvent.init loaded.key loaded.today loaded.store
 
         Routes.EditEvent rawId ->
-            Pages.EditEvent.init today rawId
-                |> wrapLoadModel model EditEventLoad EditEventLoadMsg
+            wrap loaded EditEvent EditEventMsg <| Pages.EditEvent.init loaded.today loaded.store rawId
 
         Routes.CreateLocation ->
-            ( Loaded key today <| CreateLocation <| Pages.CreateLocation.init key, Cmd.none )
+            ( wrapModel loaded CreateLocation <| Pages.CreateLocation.init loaded.key, Cmd.none )
 
         Routes.EditLocation rawId ->
-            Pages.EditLocation.init today rawId
-                |> wrapLoadModel model EditLocationLoad EditLocationLoadMsg
+            wrap loaded EditLocation EditLocationMsg <| Pages.EditLocation.init loaded.store rawId
 
 
-wrapLoadModel : Model -> (subModel -> RouteLoadModel) -> (subLoadMsg -> msg) -> ( subModel, Cmd subLoadMsg ) -> ( Model, Cmd msg )
-wrapLoadModel model wrapper loadMsgWrapper updateTuple =
-    let
-        wrap routeModel today =
-            let
-                key =
-                    keyFromModel model
-            in
-            Tuple.mapBoth
-                (\subModel -> Loading key today routeModel (wrapper subModel))
-                (Cmd.map loadMsgWrapper)
-                updateTuple
-    in
-    case model of
-        Starting _ _ ->
-            ( model, Cmd.none )
+wrap : LoadedModel -> (model -> RouteModel) -> (msg -> Msg) -> ( model, Cmd msg ) -> ( Model, Cmd Msg )
+wrap loaded wrapMdl wrapMsg ( model, msg ) =
+    ( wrapModel loaded wrapMdl model, Cmd.map wrapMsg msg )
 
-        Loaded key today routeModel ->
-            wrap routeModel today
 
-        Loading key today routeModel loading ->
-            wrap routeModel today
+wrapModel : LoadedModel -> (model -> RouteModel) -> model -> Model
+wrapModel loaded wrapMdl model =
+    Loaded (LoadedModel loaded.key loaded.today loaded.store) <| wrapMdl model
 
 
 updateLoaded : (RouteModel -> ( RouteModel, Cmd Msg )) -> Model -> ( Model, Cmd Msg )
 updateLoaded updater model =
     case model of
-        Starting _ _ ->
+        Starting _ _ _ ->
             ( model, Cmd.none )
 
-        Loaded key today loaded ->
-            updater loaded |> Tuple.mapFirst (Loaded key today)
+        Error _ ->
+            ( model, Cmd.none )
 
-        Loading key today loaded loading ->
-            updater loaded |> Tuple.mapFirst (\newLoaded -> Loading key today newLoaded loading)
+        Loaded loaded route ->
+            updater route
+                |> Tuple.mapFirst (Loaded loaded)
 
 
 errorMessageFromHttpError : Http.Error -> String
@@ -383,9 +306,6 @@ view model =
                         LoadingRoute ->
                             viewLoading
 
-                        ErrorLoading error ->
-                            viewErrorLoading error
-
                         NotFound ->
                             viewNotFound
 
@@ -409,14 +329,14 @@ view model =
                                 |> List.map (Html.map EditLocationMsg)
             in
             case model of
-                Starting _ _ ->
+                Starting _ _ _ ->
                     viewLoading
 
-                Loaded _ _ loaded ->
-                    render loaded
+                Error _ ->
+                    viewError
 
-                Loading _ _ loaded _ ->
-                    render loaded
+                Loaded _ route ->
+                    render route
 
         mainStyle =
             Css.global
@@ -438,10 +358,9 @@ viewLoading =
     [ text "Loading..." ]
 
 
-viewErrorLoading : String -> List (Html Msg)
-viewErrorLoading error =
+viewError : List (Html Msg)
+viewError =
     [ p [] [ text "There was an error while loading the app." ]
-    , p [ css [ Css.fontFamily Css.monospace, Css.whiteSpace pre ] ] [ text error ]
     ]
 
 

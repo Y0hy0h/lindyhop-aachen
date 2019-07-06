@@ -1,9 +1,6 @@
 module Pages.Overview exposing
-    ( LoadModel
-    , LoadMsg
-    , Model
+    ( Model
     , init
-    , updateLoad
     , view
     )
 
@@ -25,28 +22,9 @@ type alias Model =
     }
 
 
-type alias LoadModel =
-    {}
-
-
-init : Naive.DateTime -> ( LoadModel, Cmd LoadMsg )
-init today =
-    let
-        fetchEvents =
-            Events.fetchStore today FetchedEvents
-    in
-    ( LoadModel, fetchEvents )
-
-
-type LoadMsg
-    = FetchedEvents (Result Http.Error Events.Store)
-
-
-updateLoad : LoadMsg -> LoadModel -> Result Http.Error Model
-updateLoad msg model =
-    case msg of
-        FetchedEvents result ->
-            Result.map Model result
+init : Events.Store -> Model
+init store =
+    { store = store }
 
 
 view : Model -> List (Html msg)
