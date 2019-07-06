@@ -43,7 +43,7 @@ main =
 
 type Model
     = Starting Browser.Key Route StartingModel
-    | Error Browser.Key
+    | Error Browser.Key String
     | Loaded LoadedModel RouteModel
     | Loading LoadedModel RouteModel Route StartingModel
 
@@ -66,7 +66,7 @@ keyFromModel model =
         Starting key _ _ ->
             key
 
-        Error key ->
+        Error key _ ->
             key
 
         Loaded { key } _ ->
@@ -153,16 +153,16 @@ update msg model =
                         Ok store ->
                             load (LoadedModel key today store) route
 
-                        Err _ ->
-                            ( Error key, Cmd.none )
+                        Err error ->
+                            ( Error key (errorMessageFromHttpError error), Cmd.none )
 
                 Loading loaded routeModel route (LoadingStore today) ->
                     case result of
                         Ok store ->
                             load (LoadedModel loaded.key today store) route
 
-                        Err _ ->
-                            ( Error loaded.key, Cmd.none )
+                        Err error ->
+                            ( Error loaded.key (errorMessageFromHttpError error), Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -184,7 +184,7 @@ update msg model =
                 Starting key _ loadState ->
                     ( Starting key (Routes.toRoute url) loadState, Cmd.none )
 
-                Error key ->
+                Error key _ ->
                     init () url key
 
                 Loaded loaded routeModel ->
@@ -284,7 +284,7 @@ updateLoaded updater model =
         Starting _ _ _ ->
             ( model, Cmd.none )
 
-        Error _ ->
+        Error _ _ ->
             ( model, Cmd.none )
 
         Loaded loaded routeModel ->
@@ -352,8 +352,8 @@ view model =
                 Starting _ _ _ ->
                     viewLoading
 
-                Error _ ->
-                    viewError
+                Error _ error ->
+                    viewError error
 
                 Loaded _ routeModel ->
                     render routeModel
@@ -379,7 +379,7 @@ view model =
 
 viewLoading : List (Html Msg)
 viewLoading =
-    [ text "Loading..." ]
+    [ text "Lädt..." ]
 
 
 loadIndicator : List (Html msg)
@@ -398,12 +398,13 @@ loadIndicator =
     ]
 
 
-viewError : List (Html Msg)
-viewError =
-    [ p [] [ text "There was an error while loading the app." ]
+viewError : String -> List (Html Msg)
+viewError error =
+    [ p [] [ text "Es gab einen Fehler beim Laden." ]
+    , p [ css [ Css.fontFamily Css.monospace, Css.whiteSpace pre ] ] [ text error ]
     ]
 
 
 viewNotFound : List (Html Msg)
 viewNotFound =
-    [ text "Not found." ]
+    [ text "Die Seite konnte nicht gefunden werden." ]

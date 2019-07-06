@@ -232,4 +232,4 @@ changed model =
 
 viewInvalid : String -> List (Html Msg)
 viewInvalid rawId =
-    [ text <| "The id '" ++ rawId ++ "' is invalid." ]
+    [ text "Dieser Ort scheint nicht zu existieren." ]

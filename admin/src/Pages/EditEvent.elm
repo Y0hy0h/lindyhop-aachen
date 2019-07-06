@@ -678,13 +678,12 @@ viewEditOccurrence locations index occurrence =
                 IdDict.map (\id location -> { name = location.name, value = IdDict.encodeIdForUrl id }) locations
           in
           div []
-            ([ Utils.viewSelection "Ort" occurrence.locationId options (occMsg << InputLocationId)
-             ]
-            )
+            [ Utils.viewSelection "Ort" occurrence.locationId options (occMsg << InputLocationId)
+            ]
         , Utils.button "Löschen" (occMsg InputClickedDelete)
         ]
 
 
 viewInvalid : String -> List (Html Msg)
 viewInvalid rawId =
-    [ text <| "The id '" ++ rawId ++ "' is invalid." ]
+    [ text "Dieses Event scheint nicht zu existieren." ]
