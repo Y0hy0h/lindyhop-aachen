@@ -386,7 +386,7 @@ loadIndicator : List (Html msg)
 loadIndicator =
     [ div
         [ css
-            [ Css.position Css.absolute
+            [ Css.position Css.fixed
             , Css.top zero
             , Css.left zero
             , Css.height (em 0.1)
