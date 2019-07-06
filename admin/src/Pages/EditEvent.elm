@@ -510,7 +510,7 @@ viewModelData model =
                 [ let
                     options =
                         { enabledness =
-                            if changed model then
+                            if changedAndValid model then
                                 Utils.Enabled
 
                             else
@@ -616,8 +616,8 @@ viewBatchAdd locations input =
     ]
 
 
-changed : ModelData -> Bool
-changed model =
+changedAndValid : ModelData -> Bool
+changedAndValid model =
     eventFromInputs model.locations model.inputs.eventInputs
         |> Maybe.map (\newEvent -> newEvent /= model.event)
         |> Maybe.withDefault False
