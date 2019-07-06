@@ -32,7 +32,8 @@ view : Model -> List (Html msg)
 view model =
     [ h1 [] [ text "Admin" ]
     , h2 [] [ text "Veranstaltungen" ]
-    , ol [ css [ listStyle, spreadListItemStyle ] ]
+    , a [ href (Routes.toRelativeUrl <| Routes.CreateEvent) ] [ text "Neue Veranstaltung" ]
+    , ol [ css [ listStyle, spreadListItemStyle, Css.marginTop (em 0.5) ] ]
         (Events.mapEvents
             (\id event ->
                 li []
@@ -41,10 +42,10 @@ view model =
                     ]
             )
             model.store
-            ++ [ a [ href (Routes.toRelativeUrl <| Routes.CreateEvent) ] [ text "Neue Veranstaltung" ] ]
         )
     , h2 [] [ text "Orte" ]
-    , ol [ css [ listStyle, spreadListItemStyle ] ]
+    , a [ href (Routes.toRelativeUrl <| Routes.CreateLocation) ] [ text "Neuer Ort" ]
+    , ol [ css [ listStyle, spreadListItemStyle, Css.marginTop (em 0.5) ] ]
         (Events.mapLocations
             (\id location ->
                 li []
@@ -53,7 +54,6 @@ view model =
                     ]
             )
             model.store
-            ++ [ a [ href (Routes.toRelativeUrl <| Routes.CreateLocation) ] [ text "Neuer Ort" ] ]
         )
     ]
 
@@ -138,12 +138,12 @@ viewEvent locations event =
     div
         [ css
             [ Css.property "display" "grid"
-            , Css.property "grid-template-columns" "repeat(auto-fit, minmax(6em, 1fr))"
+            , Css.property "grid-template-columns" "repeat(auto-fit, minmax(12em, 1fr))"
             , itemBoxStyle
             ]
         ]
         [ div []
-            [ h3 [ css [itemHeadingStyle ] ] [ text event.title ]
+            [ h3 [ css [ itemHeadingStyle ] ] [ text event.title ]
             , p [] [ text event.teaser ]
             , p [] [ text shortenedDescription ]
             ]
@@ -163,9 +163,9 @@ viewOccurrence locations occurrence =
 
 viewLocation : Location -> Html msg
 viewLocation location =
-    div [css[itemBoxStyle]]
-        [ h3 [css[itemHeadingStyle]] [text <| location.name]
-        , p [] [text location.address]
+    div [ css [ itemBoxStyle ] ]
+        [ h3 [ css [ itemHeadingStyle ] ] [ text <| location.name ]
+        , p [] [ text location.address ]
         ]
 
 
@@ -176,8 +176,10 @@ itemBoxStyle =
         , Css.padding (em 1)
         ]
 
+
 itemHeadingStyle : Css.Style
 itemHeadingStyle =
-    Css.batch [
- Css.margin zero, Css.marginBottom (em 1)
-    ]
+    Css.batch
+        [ Css.margin zero
+        , Css.marginBottom (em 1)
+        ]
