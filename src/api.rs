@@ -7,63 +7,53 @@ use crate::store::{
     Id, Location, LocationWithOccurrences, OccurrenceFilter, OccurrenceFilterError, Overview, Store,
 };
 
-macro_rules! derive_routes {
-    ($mod: ident, $type: ident) => {
-        pub mod $mod {
-            use std::collections::HashMap;
-            use std::iter::FromIterator;
+pub mod locations {
+    use std::collections::HashMap;
+    use std::iter::FromIterator;
 
-            use crate::store::Actions;
-            #[allow(unused_imports)]
-            use crate::store::{Event, EventWithOccurrences, Id, Location, Occurrence, Store};
+    use crate::store::Actions;
+    use crate::store::{Id, Location, Store};
 
-            use rocket::Route;
-            use rocket_contrib::json::Json;
+    use rocket::Route;
+    use rocket_contrib::json::Json;
 
-            type Result<T> = std::result::Result<T, String>;
+    type Result<T> = std::result::Result<T, String>;
 
-            #[get("/")]
-            fn all(store: Store) -> Json<HashMap<Id<$type>, $type>> {
-                Json(HashMap::from_iter(store.all()))
-            }
+    #[get("/")]
+    fn all(store: Store) -> Json<HashMap<Id<Location>, Location>> {
+        Json(HashMap::from_iter(store.all()))
+    }
 
-            #[post("/", data = "<obj>")]
-            fn create(store: Store, obj: Json<$type>) -> Result<Json<Id<$type>>> {
-                store.create(obj.0).map_err(|err| err.to_string()).map(Json)
-            }
+    #[post("/", data = "<obj>")]
+    fn create(store: Store, obj: Json<Location>) -> Result<Json<Id<Location>>> {
+        store.create(obj.0).map_err(|err| err.to_string()).map(Json)
+    }
 
-            #[get("/<id>")]
-            fn read(store: Store, id: Id<$type>) -> Result<Json<$type>> {
-                store
-                    .read(id.into())
-                    .map_err(|err| err.to_string())
-                    .map(Json)
-            }
+    #[get("/<id>")]
+    fn read(store: Store, id: Id<Location>) -> Result<Json<Location>> {
+        store.read(id).map_err(|err| err.to_string()).map(Json)
+    }
 
-            #[put("/<id>", data = "<obj>")]
-            pub fn update(store: Store, id: Id<$type>, obj: Json<$type>) -> Result<Json<$type>> {
-                store
-                    .update(id.into(), obj.0)
-                    .map_err(|err| err.to_string())
-                    .map(Json)
-            }
+    #[put("/<id>", data = "<obj>")]
+    pub fn update(store: Store, id: Id<Location>, obj: Json<Location>) -> Result<Json<Location>> {
+        store
+            .update(id, obj.0)
+            .map_err(|err| err.to_string())
+            .map(Json)
+    }
 
-            #[delete("/<id>")]
-            fn delete(store: Store, id: Id<$type>) -> Result<Json<$type>> {
-                store
-                    .delete(id.into())
-                    .map_err(|err| format!("{:?}", err))
-                    .map(Json)
-            }
+    #[delete("/<id>")]
+    fn delete(store: Store, id: Id<Location>) -> Result<Json<Location>> {
+        store
+            .delete(id)
+            .map_err(|err| format!("{:?}", err))
+            .map(Json)
+    }
 
-            pub fn routes() -> Vec<Route> {
-                routes![all, create, read, update, delete]
-            }
-        }
-    };
+    pub fn routes() -> Vec<Route> {
+        routes![all, create, read, update, delete]
+    }
 }
-
-derive_routes!(locations, Location);
 
 mod events {
     use std::collections::HashMap;
