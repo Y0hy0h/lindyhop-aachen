@@ -7,6 +7,32 @@ use crate::store::{
     Id, Location, LocationWithOccurrences, OccurrenceFilter, OccurrenceFilterError, Overview, Store,
 };
 
+pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
+    rocket
+        .mount(
+            prefix,
+            routes![api_overview, api_locations_with_occurrences],
+        )
+        .mount(&format!("{}/locations", prefix), locations::routes())
+        .mount(&format!("{}/events", prefix), events::routes())
+}
+
+#[get("/?<filter..>")]
+fn api_overview(
+    store: Store,
+    filter: OccurrenceFilter,
+) -> Result<Json<Overview>, OccurrenceFilterError> {
+    Ok(Json(store.read_all(&filter)))
+}
+
+#[get("/locations_with_occurrences?<filter..>")]
+fn api_locations_with_occurrences(
+    store: Store,
+    filter: OccurrenceFilter,
+) -> Result<Json<HashMap<Id<Location>, LocationWithOccurrences>>, OccurrenceFilterError> {
+    Ok(Json(store.locations_with_occurrences(&filter)))
+}
+
 pub mod locations {
     use std::collections::HashMap;
     use std::iter::FromIterator;
@@ -119,30 +145,4 @@ mod events {
     pub fn routes() -> Vec<Route> {
         routes![all, create, read, update, delete]
     }
-}
-
-pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
-    rocket
-        .mount(
-            prefix,
-            routes![api_overview, api_locations_with_occurrences],
-        )
-        .mount(&format!("{}/locations", prefix), locations::routes())
-        .mount(&format!("{}/events", prefix), events::routes())
-}
-
-#[get("/?<filter..>")]
-fn api_overview(
-    store: Store,
-    filter: OccurrenceFilter,
-) -> Result<Json<Overview>, OccurrenceFilterError> {
-    Ok(Json(store.read_all(&filter)))
-}
-
-#[get("/locations_with_occurrences?<filter..>")]
-fn api_locations_with_occurrences(
-    store: Store,
-    filter: OccurrenceFilter,
-) -> Result<Json<HashMap<Id<Location>, LocationWithOccurrences>>, OccurrenceFilterError> {
-    Ok(Json(store.locations_with_occurrences(&filter)))
 }
