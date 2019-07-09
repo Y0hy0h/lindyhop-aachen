@@ -69,9 +69,8 @@ mod events {
     #[get("/?<filter..>")]
     fn all(
         store: Store,
-        filter: Result<OccurrenceFilter, OccurrenceFilterError>,
+        filter: OccurrenceFilter,
     ) -> Result<Json<HashMap<Id<Event>, EventWithOccurrences>>, OccurrenceFilterError> {
-        let filter = filter?;
         Ok(Json(HashMap::from_iter(
             store.all_events_with_occurrences(&filter),
         )))
@@ -89,10 +88,8 @@ mod events {
     fn read(
         store: Store,
         id: Id<Event>,
-        filter: Result<OccurrenceFilter, OccurrenceFilterError>,
+        filter: OccurrenceFilter,
     ) -> Result<Json<EventWithOccurrences>, OccurrenceFilterError> {
-        let filter = filter?;
-
         Ok(Json(
             store.read_event_with_occurrences(id, &filter).unwrap(),
         ))
@@ -103,10 +100,8 @@ mod events {
         store: Store,
         id: Id<Event>,
         obj: Json<EventWithOccurrences>,
-        filter: Result<OccurrenceFilter, OccurrenceFilterError>,
+        filter: OccurrenceFilter,
     ) -> Result<Json<EventWithOccurrences>, OccurrenceFilterError> {
-        let filter = filter?;
-
         Ok(Json(
             store
                 .update_event_with_occurrences(id, obj.0, &filter)
@@ -139,18 +134,15 @@ pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
 #[get("/?<filter..>")]
 fn api_overview(
     store: Store,
-    filter: Result<OccurrenceFilter, OccurrenceFilterError>,
+    filter: OccurrenceFilter,
 ) -> Result<Json<Overview>, OccurrenceFilterError> {
-    let filter = filter?;
-
     Ok(Json(store.read_all(&filter)))
 }
 
 #[get("/locations_with_occurrences?<filter..>")]
 fn api_locations_with_occurrences(
     store: Store,
-    filter: Result<OccurrenceFilter, OccurrenceFilterError>,
+    filter: OccurrenceFilter,
 ) -> Result<Json<HashMap<Id<Location>, LocationWithOccurrences>>, OccurrenceFilterError> {
-    let filter = filter?;
     Ok(Json(store.locations_with_occurrences(&filter)))
 }
