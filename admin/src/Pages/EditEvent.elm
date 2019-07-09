@@ -329,7 +329,7 @@ updateModelData msg model =
                 cmd =
                     case eventFromInputs model.locations model.inputs.eventInputs of
                         Just event ->
-                            Events.updateEvent model.eventId event SaveFinished
+                            Events.updateEvent model.today model.eventId event SaveFinished
 
                         Nothing ->
                             Cmd.none
