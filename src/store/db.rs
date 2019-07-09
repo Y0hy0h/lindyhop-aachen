@@ -11,15 +11,14 @@ embed_migrations!();
 
 pub fn initialize(rocket: Rocket) -> Result<Rocket, Rocket> {
     let conn = Connection::get_one(&rocket).expect("Database connection failed.");
-    let result = match embedded_migrations::run(&*conn) {
+
+    match embedded_migrations::run(&*conn) {
         Ok(()) => Ok(rocket),
         Err(e) => {
             eprintln!("Failed to run database migrations: {:?}", e);
             Err(rocket)
         }
-    };
-
-    result
+    }
 }
 
 pub mod schema {
@@ -195,7 +194,7 @@ impl From<(OccurrenceWithLocation, SqlId<Event>)> for SqlOccurrence {
             start: occurrence.start,
             duration: occurrence.duration as i32,
             location_id: location_id.into(),
-            event_id: event_id,
+            event_id,
         }
     }
 }

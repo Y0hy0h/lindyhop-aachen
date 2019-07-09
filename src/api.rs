@@ -104,9 +104,7 @@ mod events {
         let filter = filter?;
 
         Ok(Json(
-            store
-                .read_event_with_occurrences(id.into(), &filter)
-                .unwrap(),
+            store.read_event_with_occurrences(id, &filter).unwrap(),
         ))
     }
 
@@ -129,7 +127,7 @@ mod events {
     #[delete("/<id>")]
     fn delete(store: Store, id: Id<Event>) -> Result<Json<EventWithOccurrences>, String> {
         store
-            .delete_event_with_occurrences(id.into())
+            .delete_event_with_occurrences(id)
             .map_err(|err| format!("{:?}", err))
             .map(Json)
     }
