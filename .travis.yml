@@ -1,6 +1,4 @@
-language: node_js
-node_js:
-  - "lts/*"
+language: minimal
 
 # Do not run when triggered by tag.
 # See https://github.com/travis-ci/travis-ci/issues/8051#issuecomment-335517982
@@ -12,9 +10,15 @@ services:
 jobs:
   include:
     - stage: test
-      script: yarn test
+      script:
+        - docker build -f Dockerfile.test.node -t test_node .
+        - docker run test_node
+    - script:
+        - docker build -f Dockerfile.test.rust -t test_rust .
+        - docker run test_rust
       
     - stage: build
+      if: branch = master
       script:
         - docker build -t lindy .
       before_deploy:
@@ -33,6 +37,3 @@ jobs:
         skip_cleanup: true
         api_key: $GITHUB_PERSONAL_ACCESS_TOKEN
         file: dist.zip
-        on:
-          branch:
-            - master

@@ -17,10 +17,14 @@ use std::path::{Path, PathBuf};
 
 use chrono::prelude::*;
 use maud::{html, Markup, DOCTYPE};
+use rocket::fairing::AdHoc;
 use rocket::response::NamedFile;
-use rocket_contrib::serve::StaticFiles;
+use rocket::State;
 
-use store::{Actions, Event, Id, Location, OccurrenceWithEvent, OccurrenceWithLocation, OccurrenceFilter, Store};
+use store::{
+    Actions, Event, Id, Location, OccurrenceFilter, OccurrenceWithEvent, OccurrenceWithLocation,
+    Store,
+};
 
 #[get("/")]
 fn index(store: Store) -> Markup {
@@ -137,10 +141,35 @@ fn admin() -> Option<NamedFile> {
     NamedFile::open(Path::new("admin/dist/index.html")).ok()
 }
 
+#[derive(Debug)]
+struct AssetsDir(PathBuf);
+
+#[get("/static/<file..>")]
+fn static_file(file: PathBuf, assets_dir: State<AssetsDir>) -> Option<NamedFile> {
+    let path = assets_dir.0.join(file);
+    print!("{:?}", path);
+    NamedFile::open(path).ok()
+}
+
 fn main() {
     let rocket = rocket::ignite()
         .attach(Store::fairing())
-        .mount("/static", StaticFiles::from("./static"))
-        .mount("/", routes![index, admin_route, admin_subroute]);
+        .attach(AdHoc::on_attach("Assets Config", |rocket| {
+            let assets_dir = PathBuf::from(rocket.config().get_str("assets_dir").unwrap_or("."));
+            if assets_dir.exists() {
+                Ok(rocket.manage(AssetsDir(assets_dir)))
+            } else {
+                eprintln!(
+                    "The assets directory '{}' does not exist.",
+                    assets_dir.display()
+                );
+
+                Err(rocket)
+            }
+        }))
+        .mount(
+            "/",
+            routes![static_file, index, admin_route, admin_subroute],
+        );
     api::mount(rocket, "/api").launch();
 }

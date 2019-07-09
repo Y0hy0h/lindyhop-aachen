@@ -1,0 +1,14 @@
+FROM rust:latest
+
+WORKDIR rust
+
+RUN rustup install nightly
+RUN rustup override set nightly
+RUN rustup component add rustfmt --toolchain nightly
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./src ./src
+COPY ./migrations ./migrations
+COPY ./Rocket.toml ./Rocket.toml
+
+CMD cargo fmt -- --check && cargo test
