@@ -33,7 +33,7 @@ fn api_locations_with_occurrences(
     Ok(Json(store.locations_with_occurrences(&filter)))
 }
 
-pub mod locations {
+mod locations {
     use std::collections::HashMap;
     use std::iter::FromIterator;
 
