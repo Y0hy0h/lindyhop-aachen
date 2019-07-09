@@ -1,5 +1,6 @@
 #![feature(proc_macro_hygiene, decl_macro, custom_attribute)]
 
+mod api;
 mod store;
 
 #[macro_use]
@@ -11,17 +12,19 @@ extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
 
-use rocket::response::NamedFile;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use chrono::prelude::*;
 use maud::{html, Markup, DOCTYPE};
-use rocket_contrib::json::Json;
-use rocket_contrib::serve::StaticFiles;
+use rocket::fairing::AdHoc;
+use rocket::response::NamedFile;
+use rocket::State;
 
-use store::action::Actions;
-use store::{Event, Id, Location, Occurrence, OccurrenceWithEvent, Overview, Store};
+use store::{
+    Actions, Event, Id, Location, OccurrenceFilter, OccurrenceWithEvent, OccurrenceWithLocation,
+    Store,
+};
 
 #[get("/")]
 fn index(store: Store) -> Markup {
@@ -39,8 +42,8 @@ fn index(store: Store) -> Markup {
                 }
                 main {
                     ol.schedule {
-                        @let locations: HashMap<Id, Location> = store.all();
-                        @for occurrences_for_date in store.occurrences_by_date() {
+                        @let locations: HashMap<Id<Location>, Location> = store.all();
+                        @for occurrences_for_date in store.occurrences_by_date(&OccurrenceFilter::upcoming()) {
                             li { ( render_entry(&occurrences_for_date, &locations) ) }
                         }
                     }
@@ -52,7 +55,7 @@ fn index(store: Store) -> Markup {
 
 fn render_entry(
     (date, entries): &(NaiveDate, Vec<OccurrenceWithEvent>),
-    locations: &HashMap<Id, Location>,
+    locations: &HashMap<Id<Location>, Location>,
 ) -> Markup {
     html! {
         div.date { ( format_date(date) ) }
@@ -81,7 +84,10 @@ fn format_date(date: &NaiveDate) -> String {
     date.format(&format).to_string()
 }
 
-fn render_occurrence(entry: &OccurrenceWithEvent, locations: &HashMap<Id, Location>) -> Markup {
+fn render_occurrence(
+    entry: &OccurrenceWithEvent,
+    locations: &HashMap<Id<Location>, Location>,
+) -> Markup {
     html! {
         @let entry_html =  html_from_occurrence(&entry.occurrence, &entry.event, locations);
         div.quick-info { ( entry_html.quick_info ) }
@@ -101,9 +107,9 @@ struct OccurrenceHtml {
 }
 
 fn html_from_occurrence(
-    occurrence: &Occurrence,
+    occurrence: &OccurrenceWithLocation,
     event: &Event,
-    locations: &HashMap<Id, Location>,
+    locations: &HashMap<Id<Location>, Location>,
 ) -> OccurrenceHtml {
     let maybe_location = locations.get(&occurrence.location_id);
     let location_name = match maybe_location {
@@ -113,7 +119,7 @@ fn html_from_occurrence(
 
     OccurrenceHtml {
         title: html! { ( event.title ) },
-        quick_info: html! { ( format!("{} - {}", occurrence.start.format("%H:%M"), location_name) ) },
+        quick_info: html! { ( format!("{} - {}", occurrence.occurrence.start.format("%H:%M"), location_name) ) },
         teaser: html! { ( event.teaser ) },
     }
 }
@@ -135,23 +141,35 @@ fn admin() -> Option<NamedFile> {
     NamedFile::open(Path::new("admin/dist/index.html")).ok()
 }
 
-#[get("/")]
-fn api_overview(store: Store) -> Json<Overview> {
-    Json(store.read_all())
+#[derive(Debug)]
+struct AssetsDir(PathBuf);
+
+#[get("/static/<file..>")]
+fn static_file(file: PathBuf, assets_dir: State<AssetsDir>) -> Option<NamedFile> {
+    let path = assets_dir.0.join(file);
+    print!("{:?}", path);
+    NamedFile::open(path).ok()
 }
 
 fn main() {
-    use store::routes::*;
-
-    rocket::ignite()
+    let rocket = rocket::ignite()
         .attach(Store::fairing())
+        .attach(AdHoc::on_attach("Assets Config", |rocket| {
+            let assets_dir = PathBuf::from(rocket.config().get_str("assets_dir").unwrap_or("."));
+            if assets_dir.exists() {
+                Ok(rocket.manage(AssetsDir(assets_dir)))
+            } else {
+                eprintln!(
+                    "The assets directory '{}' does not exist.",
+                    assets_dir.display()
+                );
+
+                Err(rocket)
+            }
+        }))
         .mount(
-            "/static",
-            StaticFiles::from("./static"),
-        )
-        .mount("/", routes![index, admin_route, admin_subroute])
-        .mount("/api", routes![api_overview])
-        .mount("/api/events/", event_with_occurrences::routes())
-        .mount("/api/locations/", location::routes())
-        .launch();
+            "/",
+            routes![static_file, index, admin_route, admin_subroute],
+        );
+    api::mount(rocket, "/api").launch();
 }

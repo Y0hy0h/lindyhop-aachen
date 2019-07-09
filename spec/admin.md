@@ -1,7 +1,5 @@
 # Occurrence Generator
-Many events differ only in the date, and even repeat bi-weekly. A generator simplifies the insertion of such regular events.
-
-It allows to set starting time, duration, and location. Multiple dates can be selected in a calendar view. It then adds occurrences with the set attributes for all the selected dates.
+Events are often repeated for multiple dates. The admin offers the possibility to select multiple dates and create events in batch.
 
 # Authentication
-The website does not need the highest degree of security. Logins should be stored on the device for a month, and refreshed with each request, in order to minimize the friction of login on the user.
+Security can be simplified. Users can share rights, as the group of admins is small. There is no need for an automatic signup, since new users will rarely need to be added. Instead, new users could be added by an existing user in the admin.

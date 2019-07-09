@@ -18,6 +18,7 @@ RUN USER=root cargo init --bin
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 RUN cargo build --release --target x86_64-unknown-linux-musl
+# Ensure Cargo rebuilds. Leaving build files might make Cargo skip rebuilding. (See end of section http://whitfin.io/speeding-up-rust-docker-builds/#optimizingbuildtimes)
 RUN rm ./target/x86_64-unknown-linux-musl/release/deps/lindyhop_aachen*
 RUN rm -r ./src
 # Actual build

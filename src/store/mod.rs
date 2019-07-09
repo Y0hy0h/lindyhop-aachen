@@ -1,13 +1,17 @@
 mod db;
-#[macro_use]
-pub mod action;
-pub mod routes;
+mod model;
 
 use std::collections::{BTreeMap, HashMap};
+use std::io::Cursor;
+use std::marker::PhantomData;
 
 use chrono::{NaiveDate, NaiveDateTime};
-use rocket::request::{FromRequest, Outcome, Request};
+use rocket::http::RawStr;
+use rocket::http::Status;
+use rocket::request::{FormItem, FromParam, FromQuery, FromRequest, Outcome, Query, Request};
+use rocket::response::{self, Responder, Response};
 use rocket::{fairing, fairing::Fairing, Rocket};
+use rocket_contrib::uuid::Uuid as RocketUuid;
 use uuid::Uuid;
 
 use db::{SqlEvent, SqlLocation, SqlOccurrence};
@@ -15,72 +19,35 @@ use diesel::result::QueryResult;
 use diesel::{self, prelude::*};
 use serde::{Deserialize, Serialize};
 
-use action::Actions;
+pub use model::*;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Event {
-    pub title: String,
-    pub teaser: String,
-    pub description: String,
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct Id<Item> {
+    id: Uuid,
+    #[serde(skip)]
+    phantom: PhantomData<Item>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Occurrence {
-    pub start: NaiveDateTime,
-    pub duration: Duration,
-    pub location_id: Id,
-}
+impl<'a, T> FromParam<'a> for Id<T> {
+    type Error = <RocketUuid as FromParam<'a>>::Error;
 
-type Duration = u32;
-
-impl Occurrence {
-    pub fn end(&self) -> NaiveDateTime {
-        use std::convert::TryInto;
-        use std::ops::Add;
-        self.start
-            .add(chrono::Duration::minutes(self.duration.try_into().unwrap()))
+    /// A value is successfully parsed if `param` is a properly formatted Uuid.
+    /// Otherwise, a `ParseError` is returned.
+    #[inline(always)]
+    fn from_param(param: &'a RawStr) -> Result<Id<T>, Self::Error> {
+        RocketUuid::from_param(param).map(|uuid| uuid.into_inner().into())
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Location {
-    pub name: String,
-    pub address: String,
+impl<Item> From<Uuid> for Id<Item> {
+    fn from(uuid: Uuid) -> Self {
+        Id {
+            id: uuid,
+            phantom: PhantomData,
+        }
+    }
 }
-
-mod location_action {
-    use super::db::schema::locations::{dsl::locations as schema, table};
-    use super::*;
-
-    derive_actions!(Location, SqlLocation);
-}
-
-mod event_actions {
-    use super::db::schema::events::{dsl::events as schema, table};
-    use super::*;
-
-    derive_actions!(Event, SqlEvent);
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct Overview {
-    pub locations: HashMap<Id, Location>,
-    pub events: HashMap<Id, EventWithOccurrences>,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct EventWithOccurrences {
-    pub event: Event,
-    pub occurrences: Vec<Occurrence>,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct OccurrenceWithEvent {
-    pub occurrence: Occurrence,
-    pub event: Event,
-}
-
-pub type Id = Uuid;
 
 pub struct Store(db::Connection);
 
@@ -89,9 +56,10 @@ impl Store {
         StoreFairing
     }
 
-    pub fn read_all(&self) -> Overview {
-        let locs: HashMap<Id, Location> = self.all();
-        let evts: HashMap<Id, EventWithOccurrences> = self.all();
+    pub fn read_all(&self, filter: &OccurrenceFilter) -> Overview {
+        let locs: HashMap<Id<Location>, Location> = self.all();
+        let evts: HashMap<Id<Event>, EventWithOccurrences> =
+            self.all_events_with_occurrences(filter);
 
         Overview {
             locations: locs,
@@ -99,11 +67,15 @@ impl Store {
         }
     }
 
-    pub fn occurrences_by_date(&self) -> BTreeMap<NaiveDate, Vec<OccurrenceWithEvent>> {
+    pub fn occurrences_by_date(
+        &self,
+        filter: &OccurrenceFilter,
+    ) -> BTreeMap<NaiveDate, Vec<OccurrenceWithEvent>> {
         use db::schema::events::dsl::events;
         use db::schema::occurrences::dsl::{occurrences, start};
 
         let sql_occurrences = occurrences
+            .filter(apply_occurrence_filter(filter))
             .order(start.asc())
             .load::<SqlOccurrence>(&*self.0)
             .unwrap();
@@ -122,26 +94,196 @@ impl Store {
             .fold(
                 BTreeMap::new(),
                 |mut acc: BTreeMap<NaiveDate, Vec<OccurrenceWithEvent>>, entry| {
-                    acc.entry(entry.occurrence.start.date())
+                    acc.entry(entry.occurrence.occurrence.start.date())
                         .and_modify(|entries| entries.push(entry.clone()))
-                        .or_insert(vec![entry]);
+                        .or_insert_with(|| vec![entry]);
                     acc
                 },
             )
     }
+
+    pub fn locations_with_occurrences(
+        &self,
+        filter: &OccurrenceFilter,
+    ) -> HashMap<Id<Location>, LocationWithOccurrences> {
+        use db::schema::locations::dsl::locations;
+
+        locations
+            .load::<SqlLocation>(&*self.0)
+            .expect("Loading from database failed.")
+            .into_iter()
+            .map(|sql_location| {
+                let occurrences: HashMap<Id<Occurrence>, Occurrence> =
+                    SqlOccurrence::belonging_to(&sql_location)
+                        .filter(apply_occurrence_filter(filter))
+                        .load::<SqlOccurrence>(&*self.0)
+                        .expect("Loading from database failed.")
+                        .into_iter()
+                        .map(|sql_occurrence| {
+                            let (id, occurrence) = sql_occurrence.into();
+
+                            (id, occurrence.occurrence)
+                        })
+                        .collect();
+
+                let (id, location) = sql_location.into();
+
+                (
+                    id,
+                    LocationWithOccurrences {
+                        location,
+                        occurrences,
+                    },
+                )
+            })
+            .collect()
+    }
+}
+
+pub trait Actions<T> {
+    type Id;
+
+    fn all(&self) -> HashMap<Self::Id, T>;
+    fn create(&self, item: T) -> QueryResult<Self::Id>;
+    fn read(&self, id: Self::Id) -> QueryResult<T>;
+    fn update(&self, id: Self::Id, new_item: T) -> QueryResult<T>;
+    fn delete(&self, id: Self::Id) -> QueryResult<T>;
+}
+
+use db::schema::locations::dsl::locations as schema;
+impl Actions<Location> for Store {
+    type Id = Id<Location>;
+
+    fn all(&self) -> HashMap<Self::Id, Location> {
+        schema
+            .load::<SqlLocation>(&*self.0)
+            .expect("Could not load database")
+            .into_iter()
+            .map(|x| x.into())
+            .collect()
+    }
+
+    fn create(&self, item: Location) -> QueryResult<Self::Id> {
+        let sql_item: SqlLocation = item.into();
+        diesel::insert_into(schema)
+            .values(&sql_item)
+            .execute(&*self.0)?;
+
+        Ok(sql_item.id.into())
+    }
+
+    fn read(&self, item_id: Self::Id) -> QueryResult<Location> {
+        use db::SqlId;
+
+        schema
+            .find(SqlId::from(item_id))
+            .first::<SqlLocation>(&*self.0)
+            .map(|x| x.into())
+            .map(|(_, x)| x)
+    }
+
+    fn update(&self, item_id: Self::Id, new_item: Location) -> QueryResult<Location> {
+        use db::SqlId;
+
+        let raw_id: SqlId<Location> = item_id.into();
+        let (_, previous): (Id<Location>, Location) =
+            schema.find(&raw_id).first::<SqlLocation>(&*self.0)?.into();
+
+        diesel::update(schema.find(&raw_id))
+            .set::<SqlLocation>(new_item.into())
+            .execute(&*self.0)?;
+
+        Ok(previous)
+    }
+
+    fn delete(&self, id: Self::Id) -> QueryResult<Location> {
+        use db::SqlId;
+        let raw_id: SqlId<Location> = id.into();
+        let (_, previous): (Id<Location>, Location) =
+            schema.find(&raw_id).first::<SqlLocation>(&*self.0)?.into();
+
+        diesel::delete(schema.find(&raw_id)).execute(&*self.0)?;
+
+        Ok(previous)
+    }
 }
 
 #[derive(Debug)]
-pub enum DeleteError<T> {
-    DieselError(diesel::result::Error),
-    Dependency(Vec<T>),
+pub struct OccurrenceFilter {
+    pub before: Option<NaiveDateTime>,
+    pub after: Option<NaiveDateTime>,
 }
 
-impl Actions<EventWithOccurrences> for Store {
-    type Id = Id;
-    type DeleteError = DeleteError<Occurrence>;
+impl Default for OccurrenceFilter {
+    fn default() -> Self {
+        OccurrenceFilter {
+            before: None,
+            after: None,
+        }
+    }
+}
 
-    fn all(&self) -> HashMap<Self::Id, EventWithOccurrences> {
+impl OccurrenceFilter {
+    pub fn upcoming() -> Self {
+        let today = NaiveDateTime::new(
+            chrono::Local::today().naive_local(),
+            chrono::NaiveTime::from_hms(0, 0, 0),
+        );
+        OccurrenceFilter {
+            before: None,
+            after: Some(today),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub enum OccurrenceFilterError {
+    InvalidBeforeDate,
+    InvalidAfterDate,
+    InvalidRange,
+}
+
+impl<'r> Responder<'r> for OccurrenceFilterError {
+    fn respond_to(self, _: &Request) -> response::Result<'r> {
+        Response::build()
+            .sized_body(Cursor::new(serde_json::to_string(&self).unwrap()))
+            .status(Status::UnprocessableEntity)
+            .ok()
+    }
+}
+
+impl<'q> FromQuery<'q> for OccurrenceFilter {
+    type Error = OccurrenceFilterError;
+
+    fn from_query(mut query: Query<'q>) -> Result<Self, Self::Error> {
+        use OccurrenceFilterError::*;
+        let before: Option<NaiveDateTime> = query
+            .clone()
+            .find(|i| i.key == "before")
+            .map(|item| decode_datetime(item).ok_or(InvalidBeforeDate))
+            .transpose()?;
+        let after: Option<NaiveDateTime> = query
+            .find(|i| i.key == "after")
+            .map(|item| decode_datetime(item).ok_or(InvalidAfterDate))
+            .transpose()?;
+
+        if after < before {
+            return Err(InvalidRange)?;
+        }
+
+        Ok(OccurrenceFilter { before, after })
+    }
+}
+
+fn decode_datetime(item: FormItem) -> Option<NaiveDateTime> {
+    chrono::NaiveDateTime::parse_from_str(&item.value.url_decode_lossy(), "%Y-%m-%dT%H:%M:%S").ok()
+}
+
+impl Store {
+    pub fn all_events_with_occurrences(
+        &self,
+        filter: &OccurrenceFilter,
+    ) -> HashMap<Id<Event>, EventWithOccurrences> {
         use db::schema::events::dsl::events;
 
         events
@@ -149,16 +291,18 @@ impl Actions<EventWithOccurrences> for Store {
             .expect("Loading from database failed.")
             .into_iter()
             .map(|sql_event| {
-                let occurrences: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_event)
-                    .load::<SqlOccurrence>(&*self.0)
-                    .expect("Loading from database failed.")
-                    .into_iter()
-                    .map(|sql_occurrence| {
-                        let (_, occurrence) = sql_occurrence.into();
+                let occurrences: Vec<OccurrenceWithLocation> =
+                    SqlOccurrence::belonging_to(&sql_event)
+                        .filter(apply_occurrence_filter(filter))
+                        .load::<SqlOccurrence>(&*self.0)
+                        .expect("Loading from database failed.")
+                        .into_iter()
+                        .map(|sql_occurrence| {
+                            let (_, occurrence) = sql_occurrence.into();
 
-                        occurrence
-                    })
-                    .collect();
+                            occurrence
+                        })
+                        .collect();
 
                 let (id, event) = sql_event.into();
 
@@ -167,7 +311,10 @@ impl Actions<EventWithOccurrences> for Store {
             .collect()
     }
 
-    fn create(&self, item: EventWithOccurrences) -> QueryResult<Self::Id> {
+    pub fn create_event_with_occurrences(
+        &self,
+        item: EventWithOccurrences,
+    ) -> QueryResult<Id<Event>> {
         use db::schema::events::dsl::events;
         let sql_event: SqlEvent = item.event.into();
         diesel::insert_into(events)
@@ -187,14 +334,19 @@ impl Actions<EventWithOccurrences> for Store {
         Ok(sql_event.id.into())
     }
 
-    fn read(&self, item_id: Self::Id) -> QueryResult<EventWithOccurrences> {
+    pub fn read_event_with_occurrences(
+        &self,
+        item_id: Id<Event>,
+        filter: &OccurrenceFilter,
+    ) -> QueryResult<EventWithOccurrences> {
         use db::schema::events::dsl::events;
         use db::SqlId;
         let sql_event = events
             .find(SqlId::from(item_id))
             .first::<SqlEvent>(&*self.0)?;
 
-        let occurrences: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_event)
+        let occurrences: Vec<OccurrenceWithLocation> = SqlOccurrence::belonging_to(&sql_event)
+            .filter(apply_occurrence_filter(filter))
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
             .map(|sql_occurrence| {
@@ -209,19 +361,21 @@ impl Actions<EventWithOccurrences> for Store {
         Ok(EventWithOccurrences { event, occurrences })
     }
 
-    fn update(
+    pub fn update_event_with_occurrences(
         &self,
-        item_id: Self::Id,
+        item_id: Id<Event>,
         new_item: EventWithOccurrences,
+        filter: &OccurrenceFilter,
     ) -> QueryResult<EventWithOccurrences> {
         use db::SqlId;
 
-        let raw_id: SqlId = item_id.into();
+        let raw_id: SqlId<Event> = item_id.into();
         use db::schema::events::dsl::events;
         let sql_previous = events.find(raw_id.clone()).first::<SqlEvent>(&*self.0)?;
 
         let associated_occurrences = SqlOccurrence::belonging_to(&sql_previous);
-        let previous_occurrences: Vec<Occurrence> = associated_occurrences
+        let previous_occurrences: Vec<OccurrenceWithLocation> = associated_occurrences
+            .filter(apply_occurrence_filter(filter))
             .load::<SqlOccurrence>(&*self.0)?
             .into_iter()
             .map(|sql_occurrence| {
@@ -231,7 +385,8 @@ impl Actions<EventWithOccurrences> for Store {
             })
             .collect();
 
-        diesel::delete(associated_occurrences).execute(&*self.0)?;
+        diesel::delete(associated_occurrences.filter(apply_occurrence_filter(&filter)))
+            .execute(&*self.0)?;
 
         let new_sql_item: SqlEvent = new_item.event.into();
         diesel::update(&sql_previous)
@@ -255,17 +410,17 @@ impl Actions<EventWithOccurrences> for Store {
         })
     }
 
-    fn delete(&self, id: Self::Id) -> Result<EventWithOccurrences, Self::DeleteError> {
+    pub fn delete_event_with_occurrences(
+        &self,
+        id: Id<Event>,
+    ) -> QueryResult<EventWithOccurrences> {
         use db::SqlId;
 
-        let raw_id: SqlId = id.into();
+        let raw_id: SqlId<Event> = id.into();
         use db::schema::events::dsl::events;
-        let sql_previous = events
-            .find(raw_id)
-            .first::<SqlEvent>(&*self.0)
-            .map_err(DeleteError::DieselError)?;
+        let sql_previous = events.find(raw_id).first::<SqlEvent>(&*self.0)?;
 
-        let occurrences: Vec<Occurrence> = SqlOccurrence::belonging_to(&sql_previous)
+        let occurrences: Vec<OccurrenceWithLocation> = SqlOccurrence::belonging_to(&sql_previous)
             .load::<SqlOccurrence>(&*self.0)
             .expect("Loading from database failed.")
             .into_iter()
@@ -276,13 +431,9 @@ impl Actions<EventWithOccurrences> for Store {
             })
             .collect();
 
-        if occurrences.len() > 0 {
-            return Err(DeleteError::Dependency(occurrences));
-        }
+        diesel::delete(SqlOccurrence::belonging_to(&sql_previous)).execute(&*self.0)?;
 
-        diesel::delete(&sql_previous)
-            .execute(&*self.0)
-            .map_err(DeleteError::DieselError)?;
+        diesel::delete(&sql_previous).execute(&*self.0)?;
 
         let (_, previous) = sql_previous.into();
         Ok(EventWithOccurrences {
@@ -290,6 +441,33 @@ impl Actions<EventWithOccurrences> for Store {
             occurrences,
         })
     }
+}
+
+fn apply_occurrence_filter(
+    filter: &OccurrenceFilter,
+) -> Box<
+    dyn BoxableExpression<
+        db::schema::occurrences::table,
+        diesel::sqlite::Sqlite,
+        SqlType = diesel::sql_types::Bool,
+    >,
+> {
+    use db::schema::occurrences::dsl::*;
+    let mut query: Box<
+        dyn BoxableExpression<
+            db::schema::occurrences::table,
+            diesel::sqlite::Sqlite,
+            SqlType = diesel::sql_types::Bool,
+        >,
+    > = Box::new(true.into_sql::<diesel::sql_types::Bool>());
+    if let Some(before) = filter.before {
+        query = Box::new(query.and(start.lt(before)))
+    }
+    if let Some(after) = filter.after {
+        query = Box::new(query.and(start.gt(after)))
+    }
+
+    query
 }
 
 pub struct StoreFairing;
@@ -303,11 +481,9 @@ impl Fairing for StoreFairing {
     }
 
     fn on_attach(&self, rocket: Rocket) -> Result<Rocket, Rocket> {
-        let result = db::Connection::fairing()
+        db::Connection::fairing()
             .on_attach(rocket)
-            .and_then(|rocket| db::initialize(rocket));
-
-        result
+            .and_then(db::initialize)
     }
 }
 

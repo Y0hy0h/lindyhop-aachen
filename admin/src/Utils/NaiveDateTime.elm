@@ -17,14 +17,18 @@ module Utils.NaiveDateTime exposing
     , encodeAsMinutes
     , encodeDateAsString
     , encodeDateTime
+    , encodeDateTimeAsString
     , encodeTimeAsString
+    , fromPosix
     , hour
     , minute
     , minutes
     , month
     , monthNumeric
+    , now
     , setDate
     , setTime
+    , split
     , timeParser
     , with
     , year
@@ -35,6 +39,7 @@ import Fuzz
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Parser exposing ((|.), (|=), Parser, end, symbol)
+import Task exposing (Task)
 import Time
 import Utils.Format exposing (padInt)
 
@@ -182,9 +187,32 @@ minutes raw =
         Nothing
 
 
+split : DateTime -> ( Date, Time )
+split (DateTime date time) =
+    ( date, time )
+
+
 dateFromExternal : External.Date -> Date
 dateFromExternal external =
     Date { year = External.year external, month = External.month external, day = External.day external }
+
+
+fromPosix : Time.Zone -> Time.Posix -> DateTime
+fromPosix zone posix =
+    DateTime (Date { year = Time.toYear zone posix, month = Time.toMonth zone posix, day = Time.toDay zone posix })
+        (Time { hour = Time.toHour zone posix, minute = Time.toMinute zone posix })
+
+
+now : Task x DateTime
+now =
+    Task.map2
+        Tuple.pair
+        Time.now
+        Time.here
+        |> Task.map
+            (\( posix, zone ) ->
+                fromPosix zone posix
+            )
 
 
 
@@ -285,33 +313,41 @@ decodeMinutes =
 
 encodeDateTime : DateTime -> Encode.Value
 encodeDateTime dateTime =
-    Encode.string
-        (encodeDateAsString dateTime ++ "T" ++ encodeTimeAsString dateTime)
+    Encode.string (encodeDateTimeAsString dateTime)
 
 
-encodeDateAsString : DateTime -> String
-encodeDateAsString dateTime =
+encodeDateTimeAsString : DateTime -> String
+encodeDateTimeAsString dateTime =
+    let
+        ( date, time ) =
+            split dateTime
+    in
+    encodeDateAsString date ++ "T" ++ encodeTimeAsString time
+
+
+encodeDateAsString : Date -> String
+encodeDateAsString (Date date) =
     let
         y =
-            String.fromInt <| year dateTime
+            String.fromInt <| date.year
 
         m =
-            padInt <| monthNumeric dateTime
+            padInt <| numberFromMonth date.month
 
         d =
-            padInt <| day dateTime
+            padInt <| date.day
     in
     y ++ "-" ++ m ++ "-" ++ d
 
 
-encodeTimeAsString : DateTime -> String
-encodeTimeAsString dateTime =
+encodeTimeAsString : Time -> String
+encodeTimeAsString (Time time) =
     let
         h =
-            padInt <| hour dateTime
+            padInt <| time.hour
 
         min =
-            padInt <| minute dateTime
+            padInt <| time.minute
     in
     h ++ ":" ++ min ++ ":00"
 
