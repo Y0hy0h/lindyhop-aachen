@@ -18,7 +18,7 @@ jobs:
         - docker run test_rust
       
     - stage: build
-      if: branch = master
+      if: branch = master AND type = push
       script:
         - docker build -t lindy .
       before_deploy:
