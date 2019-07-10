@@ -38,16 +38,17 @@ fn index(store: Store) -> Markup {
             }
             body {
                 header {
-                    img type="image/svg+xml" src="static/shoe_text.svg";
-                }
-                links {
-                    block1 {
-                        a href="occurrences" text="occurrences";
-                        a href="events" text="events";
-                    }
-                    block2 {
-                        a href="#infos" text="infos";
-                        a href="#newsletter" text="Newsletter";
+                    div class="box" {}
+                    object type="image/svg+xml" data="static/shoe_text.svg" {}
+                    div class="links" {
+                        span {
+                            a class="link" href="occurrences" { "occurrences" }
+                            a class="link" href="events" {"events"}
+                        }
+                        span {
+                            a class="link" href="#infos" {"infos"}
+                            a class="link" href="#newsletter" {"Newsletter"}
+                        }
                     }
                 }
                 main {
