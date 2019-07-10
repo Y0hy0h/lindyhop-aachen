@@ -38,7 +38,7 @@ fn index(store: Store) -> Markup {
             }
             body {
                 header {
-                    h1 { "Lindy Hop Aachen" }
+                    object type="image/svg+xml" data="static/shoe_text.svg";
                 }
                 main {
                     ol.schedule {
