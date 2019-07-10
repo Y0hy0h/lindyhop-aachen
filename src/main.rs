@@ -42,11 +42,11 @@ fn index(store: Store) -> Markup {
                     object type="image/svg+xml" data="static/shoe_text.svg" {}
                     div class="links" {
                         span {
-                            a class="link" href="occurrences" { "occurrences" }
-                            a class="link" href="events" {"events"}
+                            a class="link" href="occurrences" { "Termine" }
+                            a class="link" href="events" {"Veranstaltungen"}
                         }
                         span {
-                            a class="link" href="#infos" {"infos"}
+                            a class="link" href="#infos" {"Infos"}
                             a class="link" href="#newsletter" {"Newsletter"}
                         }
                     }
