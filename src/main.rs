@@ -38,7 +38,17 @@ fn index(store: Store) -> Markup {
             }
             body {
                 header {
-                    object type="image/svg+xml" data="static/shoe_text.svg";
+                    img type="image/svg+xml" src="static/shoe_text.svg";
+                }
+                links {
+                    block1 {
+                        a href="occurrences" text="occurrences";
+                        a href="events" text="events";
+                    }
+                    block2 {
+                        a href="#infos" text="infos";
+                        a href="#newsletter" text="Newsletter";
+                    }
                 }
                 main {
                     ol.schedule {
