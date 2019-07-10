@@ -26,8 +26,7 @@ use store::{
     Store,
 };
 
-#[get("/")]
-fn index(store: Store) -> Markup {
+fn embed_html(inner: Markup) -> Markup{
     html! {
         ( DOCTYPE )
         html lang="de" {
@@ -42,26 +41,54 @@ fn index(store: Store) -> Markup {
                     object type="image/svg+xml" data="static/shoe_text.svg" {}
                     div class="links" {
                         span {
-                            a class="link" href="occurrences" { "Termine" }
-                            a class="link" href="events" {"Veranstaltungen"}
+                            a class="link" href="/" { "Termine" }
+                            a class="link" href="/events" {"Veranstaltungen"}
                         }
                         span {
-                            a class="link" href="#infos" {"Infos"}
-                            a class="link" href="#newsletter" {"Newsletter"}
+                            a class="link" href="/infos" {"Infos"}
+                            a class="link" href="/newsletter" {"Newsletter"}
                         }
                     }
                 }
                 main {
-                    ol.schedule {
-                        @let locations: HashMap<Id<Location>, Location> = store.all();
-                        @for occurrences_for_date in store.occurrences_by_date(&OccurrenceFilter::upcoming()) {
-                            li { ( render_entry(&occurrences_for_date, &locations) ) }
-                        }
-                    }
+                    (inner)
                 }
             }
         }
     }
+}
+
+#[get("/")]
+fn index(store: Store) -> Markup {
+    embed_html(html! {
+        ol.schedule {
+            @let locations: HashMap<Id<Location>, Location> = store.all();
+            @for occurrences_for_date in store.occurrences_by_date(&OccurrenceFilter::upcoming()) {
+                li { ( render_entry(&occurrences_for_date, &locations) ) }
+            }
+        }
+    })
+}
+
+#[get("/newsletter")]
+fn newsletter(store: Store) -> Markup {
+    let inner = html! {
+        div class="signup" {
+            form action="#" {
+            }
+        }
+    };
+
+    embed_html(inner)
+}
+
+#[get("/infos")]
+fn infos() -> Markup {
+    let inner = html! {
+        div class="infos" {}
+    };
+
+    embed_html(inner)
 }
 
 fn render_entry(
@@ -180,7 +207,7 @@ fn main() {
         }))
         .mount(
             "/",
-            routes![static_file, index, admin_route, admin_subroute],
+            routes![static_file, index, admin_route, admin_subroute, newsletter, infos],
         );
     api::mount(rocket, "/api").launch();
 }
