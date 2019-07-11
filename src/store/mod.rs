@@ -96,7 +96,7 @@ impl Store {
                 |mut acc: BTreeMap<NaiveDate, Vec<OccurrenceWithEvent>>, entry| {
                     acc.entry(entry.occurrence.occurrence.start.date())
                         .and_modify(|entries| entries.push(entry.clone()))
-                        .or_insert(vec![entry]);
+                        .or_insert_with(|| vec![entry]);
                     acc
                 },
             )
@@ -481,11 +481,9 @@ impl Fairing for StoreFairing {
     }
 
     fn on_attach(&self, rocket: Rocket) -> Result<Rocket, Rocket> {
-        let result = db::Connection::fairing()
+        db::Connection::fairing()
             .on_attach(rocket)
-            .and_then(|rocket| db::initialize(rocket));
-
-        result
+            .and_then(db::initialize)
     }
 }
 
