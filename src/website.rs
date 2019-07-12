@@ -1,3 +1,4 @@
+use core::cmp::max;
 use std::collections::HashMap;
 
 use chrono::prelude::*;
@@ -5,8 +6,8 @@ use maud::{html, Markup, DOCTYPE};
 use rocket::Rocket;
 
 use crate::store::{
-    Actions, Event, EventWithOccurrences, Id, Location, OccurrenceFilter, OccurrenceWithEvent,
-    OccurrenceWithLocation, Store,
+    Actions, Event, EventWithOccurrences, Id, Location, Occurrence, OccurrenceFilter,
+    OccurrenceWithEvent, OccurrenceWithLocation, Store,
 };
 
 pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
@@ -32,7 +33,7 @@ fn event_overview(store: Store) -> Markup {
             @let locations: HashMap<Id<Location>, Location> = store.all();
             @let events = store.all_events_with_occurrences(&OccurrenceFilter::upcoming());
             @for event in events.values() {
-                li { (render_event(event, &locations))}
+                li { ( render_event(event, &locations) ) }
             }
         }
     })
@@ -74,9 +75,16 @@ fn render_entry(
 }
 
 fn format_date(date: &NaiveDate) -> String {
+    let day = format_weekday(&date.weekday());
+    let format = format!("{}, %d.%m.", day);
+
+    date.format(&format).to_string()
+}
+
+fn format_weekday(day: &Weekday) -> &'static str {
     use chrono::Weekday::*;
 
-    let day = match date.weekday() {
+    match day {
         Mon => "Mo",
         Tue => "Di",
         Wed => "Mi",
@@ -84,10 +92,7 @@ fn format_date(date: &NaiveDate) -> String {
         Fri => "Fr",
         Sat => "Sa",
         Sun => "So",
-    };
-    let format = format!("{}, %d.%m.", day);
-
-    date.format(&format).to_string()
+    }
 }
 
 fn render_occurrence(
@@ -135,7 +140,43 @@ fn render_event(
     locations: &HashMap<Id<Location>, Location>,
 ) -> Markup {
     html! {
-        h2 { ( event_with_occurrences.event.title ) }
-        p { (event_with_occurrences.event.teaser ) }
+        div.event {
+            div.overview {
+                h2 { ( event_with_occurrences.event.title ) }
+                p { (event_with_occurrences.event.teaser ) }
+            }
+            div.occurrences {
+                h3 { "Termine" }
+                ol {
+                    @let preview_length = 5;
+                    @let occurrences = event_with_occurrences.occurrences.iter().take(preview_length);
+                    @let remaining = max(0, event_with_occurrences.occurrences.len() - preview_length);
+                    @for occurrence in occurrences {
+                        li {
+                            ( quickinfo_occurrence(occurrence, locations) )
+                        }
+                    }
+                    @if remaining > 0 {
+                        span.overflow { ( format!("(+ {} weitere)", remaining) ) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn quickinfo_occurrence(
+    occurrence_with_location: &OccurrenceWithLocation,
+    locations: &HashMap<Id<Location>, Location>,
+) -> Markup {
+    let date = format_date(&occurrence_with_location.occurrence.start.date());
+    let time = occurrence_with_location.occurrence.start.format("%H:%M");
+    let maybe_location = locations.get(&occurrence_with_location.location_id);
+    let location_name = match maybe_location {
+        Some(location) => &location.name,
+        None => "Steht noch nicht fest.",
+    };
+    html! {
+        span.quick-info { ( format!("{} {} - {}", date, time, location_name)) }
     }
 }
