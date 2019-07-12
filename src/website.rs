@@ -5,12 +5,12 @@ use maud::{html, Markup, DOCTYPE};
 use rocket::Rocket;
 
 use crate::store::{
-    Actions, Event, Id, Location, OccurrenceFilter, OccurrenceWithEvent, OccurrenceWithLocation,
-    Store,
+    Actions, Event, EventWithOccurrences, Id, Location, OccurrenceFilter, OccurrenceWithEvent,
+    OccurrenceWithLocation, Store,
 };
 
 pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
-    rocket.mount(prefix, routes![occurrence_overview])
+    rocket.mount(prefix, routes![occurrence_overview, event_overview])
 }
 
 #[get("/")]
@@ -20,6 +20,19 @@ fn occurrence_overview(store: Store) -> Markup {
             @let locations: HashMap<Id<Location>, Location> = store.all();
             @for occurrences_for_date in store.occurrences_by_date(&OccurrenceFilter::upcoming()) {
                 li { ( render_entry(&occurrences_for_date, &locations) ) }
+            }
+        }
+    })
+}
+
+#[get("/veranstaltungen")]
+fn event_overview(store: Store) -> Markup {
+    base_html(html! {
+        ol.events {
+            @let locations: HashMap<Id<Location>, Location> = store.all();
+            @let events = store.all_events_with_occurrences(&OccurrenceFilter::upcoming());
+            @for event in events.values() {
+                li { (render_event(event, &locations))}
             }
         }
     })
@@ -114,5 +127,15 @@ fn html_from_occurrence(
         title: html! { ( event.title ) },
         quick_info: html! { ( format!("{} - {}", occurrence.occurrence.start.format("%H:%M"), location_name) ) },
         teaser: html! { ( event.teaser ) },
+    }
+}
+
+fn render_event(
+    event_with_occurrences: &EventWithOccurrences,
+    locations: &HashMap<Id<Location>, Location>,
+) -> Markup {
+    html! {
+        h2 { ( event_with_occurrences.event.title ) }
+        p { (event_with_occurrences.event.teaser ) }
     }
 }
