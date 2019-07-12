@@ -6,8 +6,8 @@ use maud::{html, Markup, DOCTYPE};
 use rocket::Rocket;
 
 use crate::store::{
-    Actions, Event, EventWithOccurrences, Id, Location, Occurrence, OccurrenceFilter,
-    OccurrenceWithEvent, OccurrenceWithLocation, Store,
+    Actions, Event, EventWithOccurrences, Id, Location, OccurrenceFilter, OccurrenceWithEvent,
+    OccurrenceWithLocation, Store,
 };
 
 pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
@@ -59,7 +59,7 @@ impl Page {
         match self {
             OccurrenceOverview => "/",
             EventsOverview => "/veranstaltungen",
-            Infos => "/infos"
+            Infos => "/infos",
         }
     }
 
@@ -69,7 +69,7 @@ impl Page {
         match self {
             OccurrenceOverview => "Termine",
             EventsOverview => "Veranstaltungen",
-            Infos => "Infos"
+            Infos => "Infos",
         }
     }
 }
@@ -87,7 +87,7 @@ fn base_html(main: Markup, current_page: &Page) -> Markup {
             body {
                 header {
                     div.header {
-                        h1 { "Lindy Hop Aachen" }
+                        a.title href="/" { h1 { "Lindy Hop Aachen" } }
                         nav {
                             ol {
                                 @for page in vec![OccurrenceOverview, EventsOverview, Infos] {

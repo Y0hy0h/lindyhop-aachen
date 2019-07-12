@@ -45,6 +45,11 @@ header {
     @include flex-gap-horizontal(1rem);
     @include flex-gap-vertical(0.75rem);
   }
+    
+  a {
+    color: $color_white;
+    text-decoration: none;
+  }
 
   h1 {
     color: $color_white;
@@ -62,11 +67,6 @@ header {
       flex-wrap: wrap;
 
       @include flex-gap(0.75rem);
-    }
-
-    a {
-      color: $color_white;
-      text-decoration: none;
     }
 
     .current {
