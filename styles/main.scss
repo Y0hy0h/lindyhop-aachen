@@ -1,4 +1,5 @@
-@import 'events';
+@import 'occurrence_overview';
+@import 'event_overview';
 @import 'colors';
 
 $font-stack: Helvetica, sans-serif;
@@ -23,6 +24,7 @@ main {
   padding: 0 0.5em;
   padding-bottom: 0.5em;
   margin: 0 auto;
+  max-width: 68em;
 }
 
 header {
@@ -35,10 +37,17 @@ header {
   box-shadow: 0 0.2em 0.4em rgba(0, 0, 0, 0.2);
 
   h1 {
+    color: $color_white;
     margin: 0;
   }
 }
 
 h1 {
   hyphens: none;
+}
+
+h1, h2, h3 {
+  color: $color_primary;
+  margin: 0;
+  margin-bottom: 0.5rem;
 }

@@ -1,6 +1,5 @@
+@import 'widgets';
 @import 'colors';
-
-$color_card_background: $color_white;
 
 ol.schedule {
     &, ol, ul {
@@ -16,9 +15,7 @@ ol.schedule {
     margin: 0 auto;
     padding: 0.5rem;
 
-    > li + li {
-        margin-top: 1.5rem;
-    }
+    @extend %card-list;
 
     $item_spacing: 0.5rem;
 
@@ -59,11 +56,7 @@ ol.schedule {
         display: flex;
         flex-direction: column;
 
-        background-color: $color_card_background;
-        border-radius: 0.3rem;
-
-        padding: 0.5rem;
-        box-shadow: 0.1rem 0.1rem 0.3rem rgba(0, 0, 0, 0.2);
+        @extend %card;
 
         .quick-info {
             font-family: 'Courier New', Courier, monospace;
@@ -74,9 +67,6 @@ ol.schedule {
 
         h2.title {
             font-size: 150%;
-            color: $color_primary;
-            margin: 0;
-            margin-bottom: 0.5rem;
 
         }
 
