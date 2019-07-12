@@ -51,3 +51,9 @@ h1, h2, h3 {
   margin: 0;
   margin-bottom: 0.5rem;
 }
+
+p {
+  $p-margin: 1rem;
+  margin-top: $p-margin;
+  margin-bottom: $p-margin;
+}

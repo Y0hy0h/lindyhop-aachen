@@ -1,15 +1,36 @@
 @import 'widgets';
 
-ol.events {
-    max-width: 48em;
+main > ol.events {
+    max-width: 36em;
     margin: 0 auto;
 
-    padding: 0;
-    list-style: none;
+    &, ol, ul {
+        @extend %reset-list;
+    } 
 
-    @extend %card-list;
+    @extend %list-spacing;
 
     > li {
         @extend %card;
+    }
+
+    .event {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+
+        .overview {
+            flex-basis: 12em;
+        }
+
+        .quick-info {
+            @extend %quick-info;
+        }
+
+        .overflow {
+            font-style: italic;
+            @extend %quick-info;
+        }
     }
 }
