@@ -16,30 +16,66 @@ pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
 
 #[get("/")]
 fn occurrence_overview(store: Store) -> Markup {
-    base_html(html! {
-        ol.schedule {
-            @let locations: HashMap<Id<Location>, Location> = store.all();
-            @for occurrences_for_date in store.occurrences_by_date(&OccurrenceFilter::upcoming()) {
-                li { ( render_entry(&occurrences_for_date, &locations) ) }
+    base_html(
+        html! {
+            ol.schedule {
+                @let locations: HashMap<Id<Location>, Location> = store.all();
+                @for occurrences_for_date in store.occurrences_by_date(&OccurrenceFilter::upcoming()) {
+                    li { ( render_entry(&occurrences_for_date, &locations) ) }
+                }
             }
-        }
-    })
+        },
+        &Page::OccurrenceOverview,
+    )
 }
 
 #[get("/veranstaltungen")]
 fn event_overview(store: Store) -> Markup {
-    base_html(html! {
-        ol.events {
-            @let locations: HashMap<Id<Location>, Location> = store.all();
-            @let events = store.all_events_with_occurrences(&OccurrenceFilter::upcoming());
-            @for event in events.values() {
-                li { ( render_event(event, &locations) ) }
+    base_html(
+        html! {
+            ol.events {
+                @let locations: HashMap<Id<Location>, Location> = store.all();
+                @let events = store.all_events_with_occurrences(&OccurrenceFilter::upcoming());
+                @for event in events.values() {
+                    li { ( render_event(event, &locations) ) }
+                }
             }
-        }
-    })
+        },
+        &Page::EventsOverview,
+    )
 }
 
-fn base_html(main: Markup) -> Markup {
+#[derive(PartialEq)]
+enum Page {
+    OccurrenceOverview,
+    EventsOverview,
+    Infos,
+}
+
+impl Page {
+    fn url(&self) -> &'static str {
+        use Page::*;
+
+        match self {
+            OccurrenceOverview => "/",
+            EventsOverview => "/veranstaltungen",
+            Infos => "/infos"
+        }
+    }
+
+    fn title(&self) -> &'static str {
+        use Page::*;
+
+        match self {
+            OccurrenceOverview => "Termine",
+            EventsOverview => "Veranstaltungen",
+            Infos => "Infos"
+        }
+    }
+}
+
+fn base_html(main: Markup, current_page: &Page) -> Markup {
+    use Page::*;
     html! {
         ( DOCTYPE )
         html lang="de" {
@@ -50,13 +86,28 @@ fn base_html(main: Markup) -> Markup {
             }
             body {
                 header {
-                    h1 { "Lindy Hop Aachen" }
+                    div.header {
+                        h1 { "Lindy Hop Aachen" }
+                        nav {
+                            ol {
+                                @for page in vec![OccurrenceOverview, EventsOverview, Infos] {
+                                    li { ( nav_entry(page, current_page) ) }
+                                }
+                            }
+                        }
+                    }
                 }
                 main {
                     ( main )
                 }
             }
         }
+    }
+}
+
+fn nav_entry(page: Page, current: &Page) -> Markup {
+    html! {
+        a.current[current == &page] href=( page.url() ) { ( page.title() ) }
     }
 }
 

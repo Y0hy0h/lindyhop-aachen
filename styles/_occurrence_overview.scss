@@ -16,17 +16,11 @@ main > ol.schedule {
 
     @extend %list-spacing;
 
-    $item_spacing: 0.5rem;
-
     > li {
         display: flex;
         flex-wrap: wrap;
 
-        margin: -$item_spacing;
-
-        > * {
-            margin: $item_spacing;
-        }
+        @include flex-gap(0.5rem);
     }
 
     .date {

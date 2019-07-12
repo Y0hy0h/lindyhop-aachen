@@ -1,5 +1,6 @@
 @import 'occurrence_overview';
 @import 'event_overview';
+@import 'widgets';
 @import 'colors';
 
 $font-stack: Helvetica, sans-serif;
@@ -32,13 +33,47 @@ header {
   background-color: $color_primary;
 
   padding: 1em;
-  margin-bottom: 1em;
+  margin-bottom: 1rem;
 
   box-shadow: 0 0.2em 0.4em rgba(0, 0, 0, 0.2);
+
+  .header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    @include flex-gap-horizontal(1rem);
+    @include flex-gap-vertical(0.75rem);
+  }
 
   h1 {
     color: $color_white;
     margin: 0;
+  }
+
+  nav {
+    font-size: 110%;
+
+    ol {
+      @extend %reset-list;
+      margin: 0;
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+
+      @include flex-gap(0.75rem);
+    }
+
+    a {
+      color: $color_white;
+      text-decoration: none;
+    }
+
+    .current {
+      font-weight: bold;
+      text-decoration: underline;
+      text-decoration-color: rgba($color_white, 0.25);
+    }
   }
 }
 

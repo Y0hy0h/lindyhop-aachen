@@ -23,3 +23,31 @@
     font-weight: normal;
     color: $color_primary;
 }
+
+@mixin flex-gap($item_spacing) {
+    margin: -$item_spacing;
+
+    > * {
+        margin: $item_spacing;
+    }
+}
+
+@mixin flex-gap-horizontal($item_spacing) {
+    margin-left: -$item_spacing;
+    margin-right: -$item_spacing;
+
+    > * {
+        margin-left: $item_spacing;
+        margin-right: $item_spacing;
+    }
+}
+
+@mixin flex-gap-vertical($item_spacing) {
+    margin-top: -$item_spacing;
+    margin-bottom: -$item_spacing;
+
+    > * {
+        margin-top: $item_spacing;
+        margin-bottom: $item_spacing;
+    }
+}
