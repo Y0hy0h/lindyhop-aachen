@@ -1,0 +1,26 @@
+@import 'widgets';
+@import 'colors';
+
+main {
+    @extend %card;
+
+    ol, ul {
+        @extend %reset-list;
+    }
+
+    .event {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+
+        @include flex-gap(3em);
+
+        .details {
+            flex: 1;
+        }
+
+        .occurrences {
+            flex-grow: 0;
+        }
+    }
+}

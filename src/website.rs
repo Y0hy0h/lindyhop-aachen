@@ -2,6 +2,7 @@ use core::cmp::max;
 use std::collections::HashMap;
 
 use chrono::prelude::*;
+use diesel::result::QueryResult;
 use maud::{html, Markup, DOCTYPE};
 use rocket::Rocket;
 
@@ -11,7 +12,10 @@ use crate::store::{
 };
 
 pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
-    rocket.mount(prefix, routes![occurrence_overview, event_overview])
+    rocket.mount(
+        prefix,
+        routes![occurrence_overview, event_overview, event_details],
+    )
 }
 
 #[get("/")]
@@ -43,6 +47,33 @@ fn event_overview(store: Store) -> Markup {
         },
         &Page::EventsOverview,
     )
+}
+
+#[get("/veranstaltungen/<id>")]
+fn event_details(store: Store, id: Id<Event>) -> QueryResult<Markup> {
+    let EventWithOccurrences { event, occurrences } =
+        store.read_event_with_occurrences(id, &OccurrenceFilter::upcoming())?;
+    let locations: HashMap<Id<Location>, Location> = store.all();
+
+    Ok(base_html(
+        html! {
+            div.event {
+                div.details {
+                    h1 { ( event.title ) }
+                    p { ( event.description ) }
+                }
+                ol.occurrences {
+                    h2 { "Termine" }
+                    @for occurrence in occurrences {
+                        li {
+                            ( quickinfo_occurrence(&occurrence, &locations) )
+                        }
+                    }
+                }
+            }
+        },
+        &Page::EventsOverview,
+    ))
 }
 
 #[derive(PartialEq)]
@@ -82,7 +113,7 @@ fn base_html(main: Markup, current_page: &Page) -> Markup {
             head {
                 meta name="viewport" content="width=device-width, initial-scale=1";
 
-                link href="static/main.css" rel="stylesheet";
+                link href="/static/main.css" rel="stylesheet";
             }
             body {
                 header {
