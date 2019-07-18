@@ -1,6 +1,3 @@
-@import 'widgets';
-@import 'colors';
-
 main > ol.schedule {
     &, ol, ul {
         @extend %reset-list;
