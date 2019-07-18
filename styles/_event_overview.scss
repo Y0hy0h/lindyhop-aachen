@@ -12,6 +12,11 @@ main > ol.events {
         @extend %card;
     }
 
+    a {
+        text-decoration: none;
+        color: inherit;
+    }
+
     .event {
         display: flex;
         flex-direction: row;

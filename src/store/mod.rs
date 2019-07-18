@@ -4,6 +4,8 @@ mod model;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Cursor;
 use std::marker::PhantomData;
+use std::fmt;
+use std::fmt::Display;
 
 use chrono::{NaiveDate, NaiveDateTime};
 use rocket::http::RawStr;
@@ -27,6 +29,12 @@ pub struct Id<Item> {
     id: Uuid,
     #[serde(skip)]
     phantom: PhantomData<Item>,
+}
+
+impl<Item> Display for Id<Item> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.id.fmt(f)
+    }
 }
 
 impl<'a, T> FromParam<'a> for Id<T> {

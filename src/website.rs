@@ -39,8 +39,8 @@ fn event_overview(store: Store) -> Markup {
             ol.events {
                 @let locations: HashMap<Id<Location>, Location> = store.all();
                 @let events = store.all_events_with_occurrences(&OccurrenceFilter::upcoming());
-                @for event in events.values() {
-                    li { ( render_event(event, &locations) ) }
+                @for (id, event) in events.iter() {
+                    li { a href=( format!("./{}", id) ) { ( render_event(event, &locations) ) } }
                 }
             }
         },
@@ -88,8 +88,8 @@ impl Page {
 
         match self {
             OccurrenceOverview => "/",
-            EventsOverview => "/veranstaltungen",
-            Infos => "/infos",
+            EventsOverview => "/veranstaltungen/",
+            Infos => "/infos/",
         }
     }
 
