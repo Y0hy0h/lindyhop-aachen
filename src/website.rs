@@ -13,7 +13,7 @@ use crate::store::{
 pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
     rocket.mount(
         prefix,
-        routes![occurrence_overview, event_overview, event_details],
+        routes![occurrence_overview, event_overview, event_details, infos],
     )
 }
 
@@ -73,6 +73,23 @@ fn event_details(store: Store, id: Id<Event>) -> QueryResult<Markup> {
         },
         &Page::EventsOverview,
     ))
+}
+
+#[get("/infos")]
+fn infos(store: Store) -> Markup {
+    base_html(
+        html! {
+            div.infos {
+                h1 { "Über uns" }
+                p { "Wir sind eine Gruppe von Aachenern, die gerne Lindy Hop tanzt. Wir organisieren selbstständig Events. Diese Seite soll alles vorstellen, was für Lindy Hop in Aachen wichtig ist." }
+                h1 { "Das erste Mal" }
+                p { "Wenn du noch nie Lindy Hop getanzt hast, empfehlen wir dir, den Anfängerkurs abzuwarten. Diesen bieten wir einmal im Monat an. Im Anschluss kannst du das Erlernte im Social ausprobieren; da tanzt frei jeder mit jedem." }
+                p { "Du brauchst keinen festen Partner. Du kannst dir aussuchen, ob du leader oder follower lernen willst. Auch wenn die meisten eines davon bevorzugen, können viele Tänzer sowohl führen als auch folgen, du kannst also jederzeit die andere Seite ausprobieren." }
+                p { "Um dir schon einen Eindruck von der Musik zu verschaffen, kannst du gerne in unsere Playlisten reinhören." }
+            }
+        },
+        &Page::Infos,
+    )
 }
 
 #[derive(PartialEq)]

@@ -1,8 +1,10 @@
 @import 'colors';
 @import 'widgets';
+
 @import 'occurrence_overview';
 @import 'event_overview';
 @import 'event_details';
+@import 'infos';
 
 $font-stack: Helvetica, sans-serif;
 
@@ -52,7 +54,7 @@ header {
     text-decoration: none;
   }
 
-  h1 {
+  .title h1 {
     color: $color_white;
     margin: 0;
   }
