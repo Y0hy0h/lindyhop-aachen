@@ -9,8 +9,6 @@ main > .event {
     flex-direction: row;
     flex-wrap: wrap;
 
-    @include flex-gap(3em);
-
     .details {
         flex: 1;
     }
