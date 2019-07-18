@@ -1,4 +1,3 @@
-use core::cmp::max;
 use std::collections::HashMap;
 
 use chrono::prelude::*;
@@ -232,7 +231,7 @@ fn render_event(
                 ol {
                     @let preview_length = 5;
                     @let occurrences = event_with_occurrences.occurrences.iter().take(preview_length);
-                    @let remaining = max(0, event_with_occurrences.occurrences.len() - preview_length);
+                    @let remaining = event_with_occurrences.occurrences.len().checked_sub(preview_length).unwrap_or(0);
                     @for occurrence in occurrences {
                         li {
                             ( quickinfo_occurrence(occurrence, locations) )
