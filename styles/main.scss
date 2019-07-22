@@ -98,8 +98,11 @@ h1, h2, h3 {
 }
 
 p {
-  $p-margin: 1em;
-  margin-top: $p-margin;
-  margin-bottom: $p-margin;
-  line-height: 150%;
+  margin-top: 0;
+  margin-bottom: 0.3em;
+  line-height: 1.5;
+}
+
+a {
+  color: $color_primary;
 }

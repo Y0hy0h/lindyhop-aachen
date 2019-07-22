@@ -63,5 +63,6 @@ pub struct EventWithOccurrences {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct OccurrenceWithEvent {
     pub occurrence: OccurrenceWithLocation,
+    pub event_id: Id<Event>,
     pub event: Event,
 }

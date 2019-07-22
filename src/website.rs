@@ -24,7 +24,7 @@ fn occurrence_overview(store: Store) -> Markup {
             ol.schedule {
                 @let locations: HashMap<Id<Location>, Location> = store.all();
                 @for occurrences_for_date in store.occurrences_by_date(&OccurrenceFilter::upcoming()) {
-                    li { ( render_entry(&occurrences_for_date, &locations) ) }
+                    li { ( render_entry(occurrences_for_date, &locations) ) }
                 }
             }
         },
@@ -40,7 +40,7 @@ fn event_overview(store: Store) -> Markup {
                 @let locations: HashMap<Id<Location>, Location> = store.all();
                 @let events = store.all_events_with_occurrences(&OccurrenceFilter::upcoming());
                 @for (id, event) in events.iter() {
-                    li { a href=( format!("./{}", id) ) { ( render_event(event, &locations) ) } }
+                    li { ( render_event(id, event, &locations) ) }
                 }
             }
         },
@@ -76,7 +76,7 @@ fn event_details(store: Store, id: Id<Event>) -> QueryResult<Markup> {
 }
 
 #[get("/infos")]
-fn infos(store: Store) -> Markup {
+fn infos() -> Markup {
     base_html(
         html! {
             div.infos {
@@ -159,27 +159,29 @@ fn nav_entry(page: Page, current: &Page) -> Markup {
 }
 
 fn render_entry(
-    (date, entries): &(NaiveDate, Vec<OccurrenceWithEvent>),
+    (date, entries): (NaiveDate, Vec<OccurrenceWithEvent>),
     locations: &HashMap<Id<Location>, Location>,
 ) -> Markup {
     html! {
         div.date { ( format_date(date) ) }
         ol.events {
             @for occurrence_entry in entries {
-                li.event { ( render_occurrence(occurrence_entry, locations) ) }
+                li.event {
+                        ( render_occurrence(&occurrence_entry, locations) )
+                }
             }
         }
     }
 }
 
-fn format_date(date: &NaiveDate) -> String {
-    let day = format_weekday(&date.weekday());
+fn format_date(date: NaiveDate) -> String {
+    let day = format_weekday(date.weekday());
     let format = format!("{}, %d.%m.", day);
 
     date.format(&format).to_string()
 }
 
-fn format_weekday(day: &Weekday) -> &'static str {
+fn format_weekday(day: Weekday) -> &'static str {
     use chrono::Weekday::*;
 
     match day {
@@ -203,7 +205,12 @@ fn render_occurrence(
         h2.title { ( entry_html.title ) }
         div.content {
             div.description {
-                div.teaser { ( entry_html.teaser ) }
+                div.teaser {
+                    p { ( entry_html.teaser ) }
+                    a href=( format!("{}/{}", Page::EventsOverview.url(), entry.event_id) ) {
+                        "Mehr erfahren"
+                    }
+                }
             }
         }
     }
@@ -234,6 +241,7 @@ fn html_from_occurrence(
 }
 
 fn render_event(
+    event_id: &Id<Event>,
     event_with_occurrences: &EventWithOccurrences,
     locations: &HashMap<Id<Location>, Location>,
 ) -> Markup {
@@ -242,6 +250,7 @@ fn render_event(
             div.overview {
                 h2 { ( event_with_occurrences.event.title ) }
                 p { (event_with_occurrences.event.teaser ) }
+                a href=( format!("./{}", event_id) ) { "Mehr erfahren" }
             }
             div.occurrences {
                 h3 { "Termine" }
@@ -267,7 +276,7 @@ fn quickinfo_occurrence(
     occurrence_with_location: &OccurrenceWithLocation,
     locations: &HashMap<Id<Location>, Location>,
 ) -> Markup {
-    let date = format_date(&occurrence_with_location.occurrence.start.date());
+    let date = format_date(occurrence_with_location.occurrence.start.date());
     let time = occurrence_with_location.occurrence.start.format("%H:%M");
     let maybe_location = locations.get(&occurrence_with_location.location_id);
     let location_name = match maybe_location {

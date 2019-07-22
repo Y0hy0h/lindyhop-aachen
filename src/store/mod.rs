@@ -96,8 +96,8 @@ impl Store {
                     .first::<SqlEvent>(&*self.0)
                     .unwrap();
                 let (_, occurrence) = sql_occurrence.into();
-                let (_, event) = sql_event.into();
-                OccurrenceWithEvent { occurrence, event }
+                let (event_id, event) = sql_event.into();
+                OccurrenceWithEvent { occurrence, event_id, event }
             })
             .fold(
                 BTreeMap::new(),
