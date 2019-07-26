@@ -63,9 +63,6 @@ hiddenLinkStyle =
     Css.batch
         [ Css.color inherit
         , Css.textDecoration inherit
-        , Css.hover
-            [ Css.color (Css.rgba 0 0 0 0.6)
-            ]
         ]
 
 
@@ -172,8 +169,12 @@ viewLocation location =
 itemBoxStyle : Css.Style
 itemBoxStyle =
     Css.batch
-        [ Css.border3 (px 1) Css.solid (Css.rgb 0 0 0)
+        [ Css.boxSizing Css.borderBox
+            , Css.outline3 (px 1) Css.solid (Css.rgb 0 0 0)
         , Css.padding (em 1)
+        , Css.hover [
+            Css.outlineWidth (px 3)
+        ]
         ]
 
 
