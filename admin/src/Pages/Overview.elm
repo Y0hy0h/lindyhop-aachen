@@ -170,11 +170,11 @@ itemBoxStyle : Css.Style
 itemBoxStyle =
     Css.batch
         [ Css.boxSizing Css.borderBox
-            , Css.outline3 (px 1) Css.solid (Css.rgb 0 0 0)
+        , Css.outline3 (px 1) Css.solid (Css.rgb 0 0 0)
         , Css.padding (em 1)
-        , Css.hover [
-            Css.outlineWidth (px 3)
-        ]
+        , Css.hover
+            [ Css.outlineWidth (px 3)
+            ]
         ]
 
 
