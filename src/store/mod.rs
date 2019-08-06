@@ -2,10 +2,10 @@ mod db;
 mod model;
 
 use std::collections::{BTreeMap, HashMap};
-use std::io::Cursor;
-use std::marker::PhantomData;
 use std::fmt;
 use std::fmt::Display;
+use std::io::Cursor;
+use std::marker::PhantomData;
 
 use chrono::{NaiveDate, NaiveDateTime};
 use rocket::http::RawStr;
@@ -97,7 +97,11 @@ impl Store {
                     .unwrap();
                 let (_, occurrence) = sql_occurrence.into();
                 let (event_id, event) = sql_event.into();
-                OccurrenceWithEvent { occurrence, event_id, event }
+                OccurrenceWithEvent {
+                    occurrence,
+                    event_id,
+                    event,
+                }
             })
             .fold(
                 BTreeMap::new(),
