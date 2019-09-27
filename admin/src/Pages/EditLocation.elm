@@ -197,19 +197,27 @@ viewValid model =
     [ Utils.breadcrumbs [ Routes.Overview ] (Routes.EditLocation <| IdDict.encodeIdForUrl model.locationId)
     ]
         ++ (List.map (Html.map Input) <| viewEditLocation model.inputs)
-        ++ [ div [ css [ Css.displayFlex, Css.flexDirection row ] ]
-                [ let
-                    options =
-                        { enabledness =
-                            if changed model then
-                                Utils.Enabled
+        ++ [ Utils.bottomToolbar
+                [ div
+                    [ css
+                        [ Css.displayFlex
+                        , Css.flexDirection row
+                        , Css.justifyContent Css.spaceBetween
+                        ]
+                    ]
+                    [ let
+                        options =
+                            { enabledness =
+                                if changed model then
+                                    Utils.Enabled
 
-                            else
-                                Utils.Disabled
-                        }
-                  in
-                  Utils.buttonWithOptions options "Speichern" ClickedSave
-                , Utils.button "Löschen" ClickedDelete
+                                else
+                                    Utils.Disabled
+                            }
+                      in
+                      Utils.buttonWithOptions options "Speichern" ClickedSave
+                    , Utils.button "Löschen" ClickedDelete
+                    ]
                 ]
            ]
 

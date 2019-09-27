@@ -110,5 +110,7 @@ view : Model -> List (Html Msg)
 view model =
     [ Utils.breadcrumbs [ Routes.Overview ] Routes.CreateEvent ]
         ++ (List.map (Html.map Input) <| Edit.viewEditEvent model.locations model.inputs)
-        ++ [ Utils.button "Speichern" ClickedSave
+        ++ [ Utils.bottomToolbar
+                [ Utils.button "Speichern" ClickedSave
+                ]
            ]

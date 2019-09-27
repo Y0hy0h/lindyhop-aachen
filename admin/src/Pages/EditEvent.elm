@@ -495,7 +495,13 @@ viewModelData : ModelData -> List (Html Msg)
 viewModelData model =
     [ Utils.breadcrumbs [ Routes.Overview ] (Routes.EditEvent <| IdDict.encodeIdForUrl model.eventId) ]
         ++ (List.map (Html.map Input) <| viewEditEvent model.locations model.inputs)
-        ++ [ div [ css [ Css.displayFlex, Css.flexDirection row ] ]
+        ++ [Utils.bottomToolbar[ div
+                [ css
+                    [ Css.displayFlex
+                    , Css.flexDirection row
+                    , Css.justifyContent Css.spaceBetween
+                    ]
+                ]
                 [ let
                     options =
                         { enabledness =
@@ -509,7 +515,7 @@ viewModelData model =
                   Utils.buttonWithOptions options "Speichern" ClickedSave
                 , Utils.button "Löschen" ClickedDelete
                 ]
-           ]
+           ]]
 
 
 viewEditEvent : Locations -> InputModel -> List (Html InputMsg)

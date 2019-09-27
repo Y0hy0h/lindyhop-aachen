@@ -2,6 +2,7 @@ module Pages.Utils exposing
     ( Enabledness(..)
     , In
     , Input
+    , bottomToolbar
     , breadcrumbs
     , buildInput
     , button
@@ -25,7 +26,7 @@ module Pages.Utils exposing
     , viewTimeInput
     )
 
-import Css exposing (center, column, em, flexStart, none, row, zero)
+import Css exposing (center, column, em, flexStart, none, px, row, zero)
 import Css.Global as Css
 import Html.Styled as Html exposing (Html, a, div, input, label, li, nav, ol, text, textarea)
 import Html.Styled.Attributes as Attributes exposing (css, disabled, href, type_, value)
@@ -309,3 +310,17 @@ buttonWithOptions options lbl msg =
                     True
     in
     Html.button [ onClick msg, disabled isDisabled ] [ text lbl ]
+
+
+bottomToolbar : List (Html msg) -> Html msg
+bottomToolbar buttons =
+    div
+        [ css
+            [ Css.position Css.sticky
+            , Css.bottom zero
+            , Css.padding (em 1)
+            , Css.backgroundColor (Css.hsla 0 0 1 0.9)
+            , Css.borderTop3 (px 1) Css.solid (Css.rgb 0 0 0)
+            ]
+        ]
+        buttons
