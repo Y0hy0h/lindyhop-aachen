@@ -280,7 +280,7 @@ impl<'q> FromQuery<'q> for OccurrenceFilter {
             .transpose()?;
 
         if after < before {
-            return Err(InvalidRange)?;
+            return Err(InvalidRange);
         }
 
         Ok(OccurrenceFilter { before, after })
