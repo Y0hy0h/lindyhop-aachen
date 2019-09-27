@@ -21,32 +21,6 @@ use rocket::State;
 
 use store::Store;
 
-#[get("/admin")]
-fn admin_route() -> Option<NamedFile> {
-    admin()
-}
-
-// We also want to serve the file when subroutes are called, e. g. `/admin/event/42`.
-// Removing this would break reloading the admin on subroutes.
-#[get("/admin/<path..>")]
-#[allow(unused_variables)]
-fn admin_subroute(path: PathBuf) -> Option<NamedFile> {
-    admin()
-}
-
-fn admin() -> Option<NamedFile> {
-    NamedFile::open(Path::new("admin/dist/index.html")).ok()
-}
-
-#[derive(Debug)]
-struct AssetsDir(PathBuf);
-
-#[get("/static/<file..>")]
-fn static_file(file: PathBuf, assets_dir: State<AssetsDir>) -> Option<NamedFile> {
-    let path = assets_dir.0.join(file);
-    NamedFile::open(path).ok()
-}
-
 fn main() {
     let rocket = rocket::ignite()
         .attach(Store::fairing())
@@ -71,4 +45,30 @@ fn assets_fairing() -> AdHoc {
             Err(rocket)
         }
     })
+}
+
+#[get("/admin")]
+fn admin_route() -> Option<NamedFile> {
+    admin()
+}
+
+// We also want to serve the file when subroutes are called, e. g. `/admin/event/42`.
+// Removing this route would break reloading the admin on subroutes.
+#[get("/admin/<path..>")]
+#[allow(unused_variables)]
+fn admin_subroute(path: PathBuf) -> Option<NamedFile> {
+    admin()
+}
+
+fn admin() -> Option<NamedFile> {
+    NamedFile::open(Path::new("admin/dist/index.html")).ok()
+}
+
+#[derive(Debug)]
+struct AssetsDir(PathBuf);
+
+#[get("/static/<file..>")]
+fn static_file(file: PathBuf, assets_dir: State<AssetsDir>) -> Option<NamedFile> {
+    let path = assets_dir.0.join(file);
+    NamedFile::open(path).ok()
 }
