@@ -1,4 +1,4 @@
-main > ol.schedule {
+.schedule {
     &, ol, ul {
         @extend %reset-list;
     }
