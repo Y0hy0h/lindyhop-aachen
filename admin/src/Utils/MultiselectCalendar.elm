@@ -233,6 +233,7 @@ viewDates model =
             [ Css.property "display" "inline-grid"
             , Css.property "grid-template-columns" "auto auto"
             , Css.property "grid-gap" "1em"
+            , Css.property "user-select" "none"
             ]
         ]
         [ div [ css [ Css.display Css.inlineBlock ] ]
@@ -409,6 +410,11 @@ viewCalendarDay is day =
                    , Css.border (em 0)
                    , Css.hover
                         [ Css.cursor Css.pointer
+                        , if is.selected then
+                            Css.backgroundColor (Css.rgba 0 0 0 0.3)
+
+                          else
+                            Css.backgroundColor (Css.rgba 0 0 0 0.1)
                         ]
                    ]
 
