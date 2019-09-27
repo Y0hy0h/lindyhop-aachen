@@ -50,21 +50,25 @@ fn static_file(file: PathBuf, assets_dir: State<AssetsDir>) -> Option<NamedFile>
 fn main() {
     let rocket = rocket::ignite()
         .attach(Store::fairing())
-        .attach(AdHoc::on_attach("Assets Config", |rocket| {
-            let assets_dir = PathBuf::from(rocket.config().get_str("assets_dir").unwrap_or("."));
-            if assets_dir.exists() {
-                Ok(rocket.manage(AssetsDir(assets_dir)))
-            } else {
-                eprintln!(
-                    "The assets directory '{}' does not exist.",
-                    assets_dir.display()
-                );
-
-                Err(rocket)
-            }
-        }))
+        .attach(assets_fairing())
         .mount("/", routes![static_file, admin_route, admin_subroute]);
     let rocket = website::mount(rocket, "/");
     let rocket = api::mount(rocket, "/api");
     rocket.launch();
+}
+
+fn assets_fairing() -> AdHoc {
+    AdHoc::on_attach("Assets Config", |rocket| {
+        let assets_dir = PathBuf::from(rocket.config().get_str("assets_dir").unwrap_or("."));
+        if assets_dir.exists() {
+            Ok(rocket.manage(AssetsDir(assets_dir)))
+        } else {
+            eprintln!(
+                "The assets directory '{}' does not exist.",
+                assets_dir.display()
+            );
+
+            Err(rocket)
+        }
+    })
 }
