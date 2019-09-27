@@ -37,7 +37,7 @@ view model =
         (Events.mapEvents
             (\id event ->
                 li []
-                    [ a [ href (Routes.toRelativeUrl <| Routes.EditEvent <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.EditEvent <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle, focusBoxStyle ] ]
                         [ viewEvent (Events.locations model.store) event ]
                     ]
             )
@@ -49,7 +49,7 @@ view model =
         (Events.mapLocations
             (\id location ->
                 li []
-                    [ a [ href (Routes.toRelativeUrl <| Routes.EditLocation <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.EditLocation <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle, focusBoxStyle ] ]
                         [ viewLocation location ]
                     ]
             )
@@ -170,11 +170,22 @@ itemBoxStyle : Css.Style
 itemBoxStyle =
     Css.batch
         [ Css.boxSizing Css.borderBox
-        , Css.outline3 (px 1) Css.solid (Css.rgb 0 0 0)
         , Css.padding (em 1)
-        , Css.hover
-            [ Css.outlineWidth (px 3)
-            ]
+        ]
+
+
+focusBoxStyle : Css.Style
+focusBoxStyle =
+    let
+        focusStyle =
+            Css.batch
+                [ Css.outlineWidth (px 3)
+                ]
+    in
+    Css.batch
+        [ Css.outline3 (px 1) Css.solid (Css.rgb 0 0 0)
+        , Css.hover [ focusStyle ]
+        , Css.focus [ focusStyle ]
         ]
 
 
