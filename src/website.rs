@@ -13,26 +13,26 @@ use crate::store::{
 pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
     rocket.mount(
         prefix,
-        routes![occurrence_overview, event_overview, event_details, infos],
+        routes![occurrence_overview, event_overview, event_details, homepage],
     )
 }
 
-#[get("/")]
+#[get("/termine")]
 fn occurrence_overview(store: Store) -> Markup {
     base_html(
         html! {
             ol.schedule {
                 @let locations: HashMap<Id<Location>, Location> = store.all();
-                @for occurrences_for_date in store.occurrences_by_date(&OccurrenceFilter::upcoming()) {
-                    li { ( render_entry(occurrences_for_date, &locations) ) }
+                @for (date, entries) in store.occurrences_by_date(&OccurrenceFilter::upcoming()) {
+                    li { ( render_entry(date, &entries, &locations) ) }
                 }
             }
         },
-        &Page::OccurrenceOverview,
+        Some(&Page::OccurrenceOverview),
     )
 }
 
-#[get("/veranstaltungen")]
+#[get("/angebote")]
 fn event_overview(store: Store) -> Markup {
     base_html(
         html! {
@@ -44,11 +44,11 @@ fn event_overview(store: Store) -> Markup {
                 }
             }
         },
-        &Page::EventsOverview,
+        Some(&Page::EventsOverview),
     )
 }
 
-#[get("/veranstaltungen/<id>")]
+#[get("/angebote/<id>")]
 fn event_details(store: Store, id: Id<Event>) -> QueryResult<Markup> {
     let EventWithOccurrences { event, occurrences } =
         store.read_event_with_occurrences(id, &OccurrenceFilter::upcoming())?;
@@ -71,15 +71,29 @@ fn event_details(store: Store, id: Id<Event>) -> QueryResult<Markup> {
                 }
             }
         },
-        &Page::EventsOverview,
+        Some(&Page::EventsOverview),
     ))
 }
 
-#[get("/infos")]
-fn infos() -> Markup {
+#[get("/")]
+fn homepage(store: Store) -> Markup {
     base_html(
         html! {
-            div.infos {
+            section.preview {
+                h1 { "Nächster Termin" }
+                ol.schedule {
+                    li {
+                        @let locations: HashMap<Id<Location>, Location> = store.all();
+                        @let occurrences = store.occurrences_by_date(&OccurrenceFilter::upcoming());
+                        @let next_event = occurrences.into_iter().next();
+                        @if let Some((date, entries)) = next_event{
+                            ( render_entry(date, &entries, &locations) )
+                        }
+                    }
+                }
+                a href=( Page::OccurrenceOverview.url() ) { "Alle Termine" }
+            }
+            section.infos {
                 h1 { "Über uns" }
                 p { "Wir sind eine Gruppe von Aachenern, die gerne Lindy Hop tanzt. Wir organisieren selbstständig Events. Diese Seite soll alles vorstellen, was für Lindy Hop in Aachen wichtig ist." }
                 h1 { "Das erste Mal" }
@@ -88,7 +102,7 @@ fn infos() -> Markup {
                 p { "Um dir schon einen Eindruck von der Musik zu verschaffen, kannst du gerne in unsere Playlisten reinhören." }
             }
         },
-        &Page::Infos,
+        None,
     )
 }
 
@@ -96,17 +110,15 @@ fn infos() -> Markup {
 enum Page {
     OccurrenceOverview,
     EventsOverview,
-    Infos,
 }
 
 impl Page {
-    fn url(&self) -> &'static str {
+    fn url(&self) -> String {
         use Page::*;
 
         match self {
-            OccurrenceOverview => "/",
-            EventsOverview => "/veranstaltungen/",
-            Infos => "/infos/",
+            OccurrenceOverview => uri!(occurrence_overview).to_string(),
+            EventsOverview => uri!(event_overview).to_string(),
         }
     }
 
@@ -115,13 +127,12 @@ impl Page {
 
         match self {
             OccurrenceOverview => "Termine",
-            EventsOverview => "Veranstaltungen",
-            Infos => "Infos",
+            EventsOverview => "Angebote",
         }
     }
 }
 
-fn base_html(main: Markup, current_page: &Page) -> Markup {
+fn base_html(main: Markup, current_page: Option<&Page>) -> Markup {
     use Page::*;
     html! {
         ( DOCTYPE )
@@ -137,7 +148,7 @@ fn base_html(main: Markup, current_page: &Page) -> Markup {
                         a.title href="/" { h1 { "Lindy Hop Aachen" } }
                         nav {
                             ol {
-                                @for page in vec![OccurrenceOverview, EventsOverview, Infos] {
+                                @for page in vec![OccurrenceOverview, EventsOverview] {
                                     li { ( nav_entry(page, current_page) ) }
                                 }
                             }
@@ -152,14 +163,15 @@ fn base_html(main: Markup, current_page: &Page) -> Markup {
     }
 }
 
-fn nav_entry(page: Page, current: &Page) -> Markup {
+fn nav_entry(page: Page, current: Option<&Page>) -> Markup {
     html! {
-        a.current[current == &page] href=( page.url() ) { ( page.title() ) }
+        a.current[current == Some(&page)] href=( page.url() ) { ( page.title() ) }
     }
 }
 
 fn render_entry(
-    (date, entries): (NaiveDate, Vec<OccurrenceWithEvent>),
+    date: NaiveDate,
+    entries: &[OccurrenceWithEvent],
     locations: &HashMap<Id<Location>, Location>,
 ) -> Markup {
     html! {
@@ -250,14 +262,14 @@ fn render_event(
             div.overview {
                 h2 { ( event_with_occurrences.event.title ) }
                 p { (event_with_occurrences.event.teaser ) }
-                a href=( format!("./{}", event_id) ) { "Mehr erfahren" }
+                a href=( uri!(event_details: event_id) ) { "Mehr erfahren" }
             }
             div.occurrences {
                 h3 { "Termine" }
                 ol {
                     @let preview_length = 5;
                     @let occurrences = event_with_occurrences.occurrences.iter().take(preview_length);
-                    @let remaining = event_with_occurrences.occurrences.len().checked_sub(preview_length).unwrap_or(0);
+                    @let remaining = event_with_occurrences.occurrences.len().saturating_sub(preview_length);
                     @for occurrence in occurrences {
                         li {
                             ( quickinfo_occurrence(occurrence, locations) )

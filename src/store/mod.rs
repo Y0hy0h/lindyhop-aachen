@@ -8,18 +8,17 @@ use std::io::Cursor;
 use std::marker::PhantomData;
 
 use chrono::{NaiveDate, NaiveDateTime};
-use rocket::http::RawStr;
-use rocket::http::Status;
+use db::{SqlEvent, SqlLocation, SqlOccurrence};
+use diesel::result::QueryResult;
+use diesel::{self, prelude::*};
+use rocket::http::uri::{Formatter, Path, UriDisplay};
+use rocket::http::{impl_from_uri_param_identity, RawStr, Status};
 use rocket::request::{FormItem, FromParam, FromQuery, FromRequest, Outcome, Query, Request};
 use rocket::response::{self, Responder, Response};
 use rocket::{fairing, fairing::Fairing, Rocket};
 use rocket_contrib::uuid::Uuid as RocketUuid;
-use uuid::Uuid;
-
-use db::{SqlEvent, SqlLocation, SqlOccurrence};
-use diesel::result::QueryResult;
-use diesel::{self, prelude::*};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub use model::*;
 
@@ -47,6 +46,14 @@ impl<'a, T> FromParam<'a> for Id<T> {
         RocketUuid::from_param(param).map(|uuid| uuid.into_inner().into())
     }
 }
+
+impl<T> UriDisplay<Path> for Id<T> {
+    fn fmt(&self, f: &mut Formatter<Path>) -> fmt::Result {
+        f.write_value(&format!("{}", self.id))
+    }
+}
+
+impl_from_uri_param_identity!([Path] (T) Id<T>);
 
 impl<Item> From<Uuid> for Id<Item> {
     fn from(uuid: Uuid) -> Self {
@@ -280,7 +287,7 @@ impl<'q> FromQuery<'q> for OccurrenceFilter {
             .transpose()?;
 
         if after < before {
-            return Err(InvalidRange)?;
+            return Err(InvalidRange);
         }
 
         Ok(OccurrenceFilter { before, after })
