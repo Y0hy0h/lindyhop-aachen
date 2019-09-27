@@ -14,11 +14,11 @@ module Pages.EditEvent exposing
     , viewEditEvent
     )
 
-import Css exposing (em, flexStart, px, row, zero)
+import Css exposing (em, flexStart, int, px, row, vh, zero)
 import Css.Global as Css
 import Date exposing (Date)
 import Events exposing (Event, Location, Locations, Occurrence)
-import Html.Styled as Html exposing (Html, a, div, h2, h3, input, label, li, ol, p, text, textarea)
+import Html.Styled as Html exposing (Html, a, details, div, h2, h3, input, label, li, ol, p, summary, text, textarea)
 import Html.Styled.Attributes exposing (css, href, type_, value)
 import Html.Styled.Events exposing (onInput)
 import Http
@@ -74,7 +74,6 @@ type alias InputModel =
 type alias BatchAddModel =
     { inputs : BatchOccurrenceInput
     , dates : MultiselectCalendar.Model
-    , status : DisplayStatus
     }
 
 
@@ -123,7 +122,6 @@ initBatchAddModel locations =
     in
     ( { inputs = emptyBatchOccurrenceInput locations
       , dates = calendarModel
-      , status = Hidden
       }
     , Cmd.map (InputBatchAdd << BatchMultiselectCalendarMsg) calendarMsg
     )
@@ -293,8 +291,7 @@ type OccurrenceMsg
 
 
 type BatchAddMsg
-    = ClickedBatchAdd
-    | BatchMultiselectCalendarMsg MultiselectCalendar.Msg
+    = BatchMultiselectCalendarMsg MultiselectCalendar.Msg
     | BatchAddInputMsg BatchAddInputMsg
 
 
@@ -460,16 +457,8 @@ updateEventInputs locations msg event =
 updateBatchAdd : Locations -> BatchAddMsg -> BatchAddModel -> BatchAddModel
 updateBatchAdd locations msg model =
     case msg of
-        ClickedBatchAdd ->
-            { model | status = toggle model.status }
-
         BatchAddInputMsg batchMsg ->
-            case model.status of
-                Shown ->
-                    { model | inputs = updateBatchAddInput batchMsg model.inputs }
-
-                _ ->
-                    model
+            { model | inputs = updateBatchAddInput batchMsg model.inputs }
 
         BatchMultiselectCalendarMsg calendarMsg ->
             { model | dates = MultiselectCalendar.update calendarMsg model.dates }
@@ -534,36 +523,14 @@ viewEditEvent locations inputs =
                 inputs.eventInputs.occurrences
 
         controls =
-            [ let
-                batchAddLabel =
-                    case inputs.batchAdd.status of
-                        Shown ->
-                            "Mehrtermindialog schließen"
-
-                        Hidden ->
-                            "Mehrere Termine hinzufügen"
-              in
-              div
-                [ css
-                    [ Css.marginTop (em 1)
-                    , Css.padding (em 1)
-                    , Css.border3 (px 1) Css.solid (Css.rgb 0 0 0)
+            [ div
+                [ css [ Css.padding (em 1) ] ]
+                [ details
+                    []
+                    [ summary [ css [ Css.cursor Css.pointer ] ] [ text "Neue Termine hinzufügen" ]
+                    , div [ css [ Css.marginTop (em 1) ] ] (viewBatchAdd locations inputs.batchAdd)
                     ]
                 ]
-                ([ Utils.button "Neuer Termin" (InputEvent AddOccurrence)
-                 , Utils.button batchAddLabel (InputBatchAdd ClickedBatchAdd)
-                 ]
-                    ++ (case inputs.batchAdd.status of
-                            Shown ->
-                                [ div
-                                    [ css [ Css.marginTop (em 1) ] ]
-                                    (viewBatchAdd locations inputs.batchAdd)
-                                ]
-
-                            _ ->
-                                []
-                       )
-                )
             ]
     in
     [ fields
@@ -573,7 +540,20 @@ viewEditEvent locations inputs =
         ]
     , h2 [] [ text "Termine" ]
     , ol [ css [ spreadListItemStyle ] ]
-        ([ div [ css [ Css.marginBottom (em 1) ] ] controls ]
+        ([ div
+            [ css
+                [ Css.marginBottom (em 1)
+                , Css.position Css.sticky
+                , Css.top zero
+                , Css.zIndex (int 1)
+                , Css.border3 (px 1) Css.solid (Css.rgb 0 0 0)
+                , Css.backgroundColor (Css.hsla 0 0 1 0.9)
+                , Css.maxHeight (vh 100)
+                , Css.overflow Css.auto
+                ]
+            ]
+            controls
+         ]
             ++ occurrences
         )
     ]
@@ -601,16 +581,8 @@ viewBatchAdd locations input =
                 IdDict.map (\id location -> { name = location.name, value = IdDict.encodeIdForUrl id }) locations
           in
           div []
-            ([ Utils.viewSelection "Ort" input.inputs.locationId options (InputBatchAdd << BatchAddInputMsg << BatchInputLocationId)
-             ]
-                ++ (case extract input.inputs.locationId of
-                        Just id ->
-                            [ a [ href <| Routes.toRelativeUrl <| Routes.EditLocation (IdDict.encodeIdForUrl id) ] [ text "Bearbeiten" ] ]
-
-                        Nothing ->
-                            []
-                   )
-            )
+            [ Utils.viewSelection "Ort" input.inputs.locationId options (InputBatchAdd << BatchAddInputMsg << BatchInputLocationId)
+            ]
         ]
     , Utils.button "Hinzufügen" BatchAddRequested
     ]
