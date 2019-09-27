@@ -30,7 +30,8 @@ init store =
 
 view : Model -> List (Html msg)
 view model =
-    [ h1 [] [ text "Admin" ]
+    [ h1 [ css [ Css.marginBottom zero ] ] [ text "Lindy Hop Aachen Admin" ]
+    , a [ href "/" ] [ text "Zurück zur Website" ]
     , h2 [] [ text "Veranstaltungen" ]
     , a [ href (Routes.toRelativeUrl <| Routes.CreateEvent) ] [ text "Neue Veranstaltung" ]
     , ol [ css [ listStyle, spreadListItemStyle, Css.marginTop (em 0.5) ] ]

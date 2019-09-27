@@ -174,7 +174,11 @@ update msg model =
                         key =
                             keyFromModel model
                     in
-                    ( model, Browser.pushUrl key (Url.toString url) )
+                    if url.path == "/" then
+                        ( model, Browser.load "/" )
+
+                    else
+                        ( model, Browser.pushUrl key (Url.toString url) )
 
                 Browser.External href ->
                     ( model, Browser.load href )
