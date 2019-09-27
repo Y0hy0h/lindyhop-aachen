@@ -1,0 +1,19 @@
+main > .event {
+    @extend %card;
+
+    ol, ul {
+        @extend %reset-list;
+    }
+
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+
+    .details {
+        flex: 1;
+    }
+
+    .occurrences {
+        flex-grow: 0;
+    }
+}

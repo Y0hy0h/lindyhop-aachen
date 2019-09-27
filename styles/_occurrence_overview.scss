@@ -1,36 +1,23 @@
-@import 'colors';
-
-$color_card_background: $color_white;
-
-ol.schedule {
+.schedule {
     &, ol, ul {
-        padding: 0;
-        list-style: none;
+        @extend %reset-list;
     }
      
     ol, ul {
         margin: 0;
     }
 
-    max-width: 30rem;
+    max-width: 32rem;
     margin: 0 auto;
     padding: 0.5rem;
 
-    > li + li {
-        margin-top: 1.5rem;
-    }
-
-    $item_spacing: 0.5rem;
+    @extend %list-spacing;
 
     > li {
         display: flex;
         flex-wrap: wrap;
 
-        margin: -$item_spacing;
-
-        > * {
-            margin: $item_spacing;
-        }
+        @include flex-gap(0.5rem);
     }
 
     .date {
@@ -59,25 +46,11 @@ ol.schedule {
         display: flex;
         flex-direction: column;
 
-        background-color: $color_card_background;
-        border-radius: 0.3rem;
-
-        padding: 0.5rem;
-        box-shadow: 0.1rem 0.1rem 0.3rem rgba(0, 0, 0, 0.2);
+        @extend %card;
 
         .quick-info {
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: normal;
             font-size: 110%;
-            color: $color_primary;
-        }
-
-        h2.title {
-            font-size: 150%;
-            color: $color_primary;
-            margin: 0;
-            margin-bottom: 0.5rem;
-
+            @extend %quick-info;
         }
 
         .content {

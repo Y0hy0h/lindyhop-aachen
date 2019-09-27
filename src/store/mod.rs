@@ -2,22 +2,23 @@ mod db;
 mod model;
 
 use std::collections::{BTreeMap, HashMap};
+use std::fmt;
+use std::fmt::Display;
 use std::io::Cursor;
 use std::marker::PhantomData;
 
 use chrono::{NaiveDate, NaiveDateTime};
-use rocket::http::RawStr;
-use rocket::http::Status;
+use db::{SqlEvent, SqlLocation, SqlOccurrence};
+use diesel::result::QueryResult;
+use diesel::{self, prelude::*};
+use rocket::http::uri::{Formatter, Path, UriDisplay};
+use rocket::http::{impl_from_uri_param_identity, RawStr, Status};
 use rocket::request::{FormItem, FromParam, FromQuery, FromRequest, Outcome, Query, Request};
 use rocket::response::{self, Responder, Response};
 use rocket::{fairing, fairing::Fairing, Rocket};
 use rocket_contrib::uuid::Uuid as RocketUuid;
-use uuid::Uuid;
-
-use db::{SqlEvent, SqlLocation, SqlOccurrence};
-use diesel::result::QueryResult;
-use diesel::{self, prelude::*};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub use model::*;
 
@@ -27,6 +28,12 @@ pub struct Id<Item> {
     id: Uuid,
     #[serde(skip)]
     phantom: PhantomData<Item>,
+}
+
+impl<Item> Display for Id<Item> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.id.fmt(f)
+    }
 }
 
 impl<'a, T> FromParam<'a> for Id<T> {
@@ -39,6 +46,14 @@ impl<'a, T> FromParam<'a> for Id<T> {
         RocketUuid::from_param(param).map(|uuid| uuid.into_inner().into())
     }
 }
+
+impl<T> UriDisplay<Path> for Id<T> {
+    fn fmt(&self, f: &mut Formatter<Path>) -> fmt::Result {
+        f.write_value(&format!("{}", self.id))
+    }
+}
+
+impl_from_uri_param_identity!([Path] (T) Id<T>);
 
 impl<Item> From<Uuid> for Id<Item> {
     fn from(uuid: Uuid) -> Self {
@@ -88,8 +103,12 @@ impl Store {
                     .first::<SqlEvent>(&*self.0)
                     .unwrap();
                 let (_, occurrence) = sql_occurrence.into();
-                let (_, event) = sql_event.into();
-                OccurrenceWithEvent { occurrence, event }
+                let (event_id, event) = sql_event.into();
+                OccurrenceWithEvent {
+                    occurrence,
+                    event_id,
+                    event,
+                }
             })
             .fold(
                 BTreeMap::new(),
@@ -268,7 +287,7 @@ impl<'q> FromQuery<'q> for OccurrenceFilter {
             .transpose()?;
 
         if after < before {
-            return Err(InvalidRange)?;
+            return Err(InvalidRange);
         }
 
         Ok(OccurrenceFilter { before, after })

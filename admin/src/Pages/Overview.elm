@@ -37,7 +37,7 @@ view model =
         (Events.mapEvents
             (\id event ->
                 li []
-                    [ a [ href (Routes.toRelativeUrl <| Routes.EditEvent <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.EditEvent <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle, focusBoxStyle ] ]
                         [ viewEvent (Events.locations model.store) event ]
                     ]
             )
@@ -49,7 +49,7 @@ view model =
         (Events.mapLocations
             (\id location ->
                 li []
-                    [ a [ href (Routes.toRelativeUrl <| Routes.EditLocation <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.EditLocation <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle, focusBoxStyle ] ]
                         [ viewLocation location ]
                     ]
             )
@@ -63,9 +63,6 @@ hiddenLinkStyle =
     Css.batch
         [ Css.color inherit
         , Css.textDecoration inherit
-        , Css.hover
-            [ Css.color (Css.rgba 0 0 0 0.6)
-            ]
         ]
 
 
@@ -172,8 +169,23 @@ viewLocation location =
 itemBoxStyle : Css.Style
 itemBoxStyle =
     Css.batch
-        [ Css.border3 (px 1) Css.solid (Css.rgb 0 0 0)
+        [ Css.boxSizing Css.borderBox
         , Css.padding (em 1)
+        ]
+
+
+focusBoxStyle : Css.Style
+focusBoxStyle =
+    let
+        focusStyle =
+            Css.batch
+                [ Css.outlineWidth (px 3)
+                ]
+    in
+    Css.batch
+        [ Css.outline3 (px 1) Css.solid (Css.rgb 0 0 0)
+        , Css.hover [ focusStyle ]
+        , Css.focus [ focusStyle ]
         ]
 
 

@@ -1,0 +1,13 @@
+main > * + * {
+    margin-top: 1em;
+}
+
+main > .preview {
+    @extend %card;
+    max-width: 26rem;
+    margin: 0 auto;
+}
+
+main > .infos {
+    @extend %card;
+}
