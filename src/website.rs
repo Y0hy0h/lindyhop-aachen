@@ -138,6 +138,7 @@ fn base_html(main: Markup, current_page: Option<&Page>) -> Markup {
         ( DOCTYPE )
         html lang="de" {
             head {
+                title { "Lindy Hop Aachen" }
                 meta name="viewport" content="width=device-width, initial-scale=1";
 
                 link href="/static/main.css" rel="stylesheet";
