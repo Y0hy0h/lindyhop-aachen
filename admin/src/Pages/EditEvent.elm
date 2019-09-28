@@ -495,27 +495,29 @@ viewModelData : ModelData -> List (Html Msg)
 viewModelData model =
     [ Utils.breadcrumbs [ Routes.Overview ] (Routes.EditEvent <| IdDict.encodeIdForUrl model.eventId) ]
         ++ (List.map (Html.map Input) <| viewEditEvent model.locations model.inputs)
-        ++ [Utils.bottomToolbar[ div
-                [ css
-                    [ Css.displayFlex
-                    , Css.flexDirection row
-                    , Css.justifyContent Css.spaceBetween
+        ++ [ Utils.bottomToolbar
+                [ div
+                    [ css
+                        [ Css.displayFlex
+                        , Css.flexDirection row
+                        , Css.justifyContent Css.spaceBetween
+                        ]
+                    ]
+                    [ let
+                        options =
+                            { enabledness =
+                                if changedAndValid model then
+                                    Utils.Enabled
+
+                                else
+                                    Utils.Disabled
+                            }
+                      in
+                      Utils.buttonWithOptions options "Speichern" ClickedSave
+                    , Utils.button "Löschen" ClickedDelete
                     ]
                 ]
-                [ let
-                    options =
-                        { enabledness =
-                            if changedAndValid model then
-                                Utils.Enabled
-
-                            else
-                                Utils.Disabled
-                        }
-                  in
-                  Utils.buttonWithOptions options "Speichern" ClickedSave
-                , Utils.button "Löschen" ClickedDelete
-                ]
-           ]]
+           ]
 
 
 viewEditEvent : Locations -> InputModel -> List (Html InputMsg)
