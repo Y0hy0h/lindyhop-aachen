@@ -1,7 +1,7 @@
-node_modules/
+/node_modules/
 
-static/
-db/
+/static/
+/db/
 
-target/
+/target/
 **/*.rs.bk
