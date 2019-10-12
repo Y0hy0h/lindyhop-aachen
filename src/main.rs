@@ -1,8 +1,7 @@
 #![feature(proc_macro_hygiene, decl_macro, custom_attribute)]
 
-mod api;
 mod store;
-mod website;
+// mod website;
 
 #[macro_use]
 extern crate rocket;
@@ -26,8 +25,7 @@ fn main() {
         .attach(Store::fairing())
         .attach(assets_fairing())
         .mount("/", routes![static_file, admin_route, admin_subroute]);
-    let rocket = website::mount(rocket, "/");
-    let rocket = api::mount(rocket, "/api");
+    //let rocket = website::mount(rocket, "/");
     rocket.launch();
 }
 
