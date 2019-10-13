@@ -1,10 +1,9 @@
-use std::fmt::Debug;
-
-use diesel::{self, prelude::*};
+use diesel::prelude::*;
 use rocket::Rocket;
+use rocket_contrib::databases::diesel;
 
 #[database("sqlite_database")]
-pub struct Connection(SqliteConnection);
+pub struct Connection(diesel::SqliteConnection);
 
 embed_migrations!();
 
