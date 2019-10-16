@@ -20,10 +20,10 @@ impl SqlLocation {
 pub type Schema = juniper::RootNode<'static, Query, Mutation>;
 
 pub fn new_schema_instance() -> Schema {
-    Schema::new(Query, Mutation::new())
+    Schema::new(Query, Mutation)
 }
 
-struct Query;
+pub struct Query;
 
 #[juniper::object(Context=Store)]
 impl Query {
@@ -36,8 +36,11 @@ impl Query {
     }
 }
 
-type Mutation = juniper::EmptyMutation<Store>;
+pub struct Mutation;
 
-pub struct Store(db::Connection);
+#[juniper::object(Context=Store)]
+impl Mutation {}
+
+pub type Store = db::Connection;
 
 impl juniper::Context for Store {}

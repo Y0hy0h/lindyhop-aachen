@@ -75,10 +75,17 @@ pub struct SqlOccurrence {
     pub location_id: SqlId,
 }
 
-#[derive(Queryable, Clone, Identifiable, Insertable, Debug, AsChangeset)]
+#[derive(Queryable, Clone, Identifiable, Debug)]
 #[table_name = "locations"]
 pub struct SqlLocation {
     pub id: SqlId,
+    pub name: String,
+    pub address: String,
+}
+
+#[derive(Clone, Debug, Insertable, AsChangeset)]
+#[table_name = "locations"]
+pub struct NewSqlLocation {
     pub name: String,
     pub address: String,
 }
