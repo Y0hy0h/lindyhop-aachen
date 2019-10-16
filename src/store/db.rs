@@ -1,4 +1,4 @@
-use diesel::prelude::*;
+use juniper::{GraphQLInputObject, GraphQLObject};
 use rocket::Rocket;
 use rocket_contrib::databases::diesel;
 
@@ -11,7 +11,10 @@ pub fn initialize(rocket: Rocket) -> Result<Rocket, Rocket> {
     let conn = Connection::get_one(&rocket).expect("Database connection failed.");
 
     match embedded_migrations::run(&*conn) {
-        Ok(()) => Ok(rocket),
+        Ok(()) => {
+            println!("Ran migrations successfully."); // TODO: Use proper logging.
+            Ok(rocket)
+        }
         Err(e) => {
             eprintln!("Failed to run database migrations: {:?}", e);
             Err(rocket)
@@ -75,7 +78,7 @@ pub struct SqlOccurrence {
     pub location_id: SqlId,
 }
 
-#[derive(Queryable, Clone, Identifiable, Debug)]
+#[derive(Queryable, Clone, Identifiable, Debug, GraphQLObject)]
 #[table_name = "locations"]
 pub struct SqlLocation {
     pub id: SqlId,
@@ -83,7 +86,7 @@ pub struct SqlLocation {
     pub address: String,
 }
 
-#[derive(Clone, Debug, Insertable, AsChangeset)]
+#[derive(Clone, Debug, Insertable, AsChangeset, GraphQLInputObject)]
 #[table_name = "locations"]
 pub struct NewSqlLocation {
     pub name: String,
