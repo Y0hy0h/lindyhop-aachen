@@ -1,9 +1,8 @@
-FROM rust:latest
+FROM rustlang/rust:nightly
 
 WORKDIR rust
 
-RUN rustup toolchain install nightly --component rustfmt
-RUN rustup override set nightly
+RUN rustup component add rustfmt --toolchain nightly
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./src ./src
