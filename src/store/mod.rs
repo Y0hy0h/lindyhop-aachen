@@ -5,9 +5,7 @@ use rocket::fairing::{self, Fairing};
 use rocket::request::{FromRequest, Outcome, Request};
 use rocket::Rocket;
 
-use db::{NewSqlLocation, SqlId, SqlLocation};
-
-type Id = SqlId;
+use db::{Id, Location, NewLocation, UpdateLocation};
 
 pub type Schema = juniper::RootNode<'static, Query, Mutation>;
 
@@ -19,7 +17,7 @@ pub struct Query;
 
 #[juniper::object(Context=Store)]
 impl Query {
-    fn locations(context: &Store) -> Vec<SqlLocation> {
+    fn all_locations(context: &Store) -> Vec<Location> {
         use db::schema::locations::dsl::*;
         locations
             .load(&*context.0)
@@ -31,17 +29,46 @@ pub struct Mutation;
 
 #[juniper::object(Context=Store)]
 impl Mutation {
-    fn new_location(context: &Store, new_loc: NewSqlLocation) -> Id {
+    fn add_location(context: &Store, new_location: NewLocation) -> Id {
         use db::schema::locations::dsl::*;
         context
             .0
-            .transaction::<_, _, _>(|| {
+            .transaction(|| {
                 diesel::insert_into(locations)
-                    .values(&new_loc)
+                    .values(&new_location)
                     .execute(&*context.0)?;
                 locations.select(id).order(id.desc()).first(&*context.0)
             })
             .expect("Error inserting into database.")
+    }
+
+    fn update_location(
+        context: &Store,
+        id_to_update: Id,
+        new_location: UpdateLocation,
+    ) -> Location {
+        use db::schema::locations::dsl::*;
+        let item = locations
+            .find(id_to_update)
+            .first(&*context.0)
+            .expect("Error fetching from database.");
+        diesel::update(&item)
+            .set(new_location)
+            .execute(&*context.0)
+            .expect("Error updating in database.");
+        item
+    }
+
+    fn remove_location(context: &Store, id_to_remove: Id) -> Location {
+        use db::schema::locations::dsl::*;
+        let item = locations
+            .find(id_to_remove)
+            .first(&*context.0)
+            .expect("Error fetching from database.");
+        diesel::delete(&item)
+            .execute(&*context.0)
+            .expect("Error deleting from database.");
+        item
     }
 }
 

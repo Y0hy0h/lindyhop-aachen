@@ -53,12 +53,12 @@ use chrono::NaiveDateTime;
 
 use schema::*;
 
-pub type SqlId = i32;
+pub type Id = i32;
 
 #[derive(Queryable, Insertable, Debug, Identifiable, Clone, PartialEq, AsChangeset)]
 #[table_name = "events"]
-pub struct SqlEvent {
-    pub id: SqlId,
+pub struct Event {
+    pub id: Id,
     pub title: String,
     pub teaser: String,
     pub description: String,
@@ -67,28 +67,35 @@ pub struct SqlEvent {
 #[derive(
     Queryable, Insertable, Clone, Debug, Identifiable, PartialEq, AsChangeset, Associations,
 )]
-#[belongs_to(SqlEvent, foreign_key = "event_id")]
-#[belongs_to(SqlLocation, foreign_key = "location_id")]
+#[belongs_to(Event, foreign_key = "event_id")]
+#[belongs_to(Location, foreign_key = "location_id")]
 #[table_name = "occurrences"]
-pub struct SqlOccurrence {
-    pub id: SqlId,
-    pub event_id: SqlId,
+pub struct Occurrence {
+    pub id: Id,
+    pub event_id: Id,
     pub start: NaiveDateTime,
     pub duration: i32,
-    pub location_id: SqlId,
+    pub location_id: Id,
 }
 
 #[derive(Queryable, Clone, Identifiable, Debug, GraphQLObject)]
 #[table_name = "locations"]
-pub struct SqlLocation {
-    pub id: SqlId,
+pub struct Location {
+    pub id: Id,
     pub name: String,
     pub address: String,
 }
 
 #[derive(Clone, Debug, Insertable, AsChangeset, GraphQLInputObject)]
 #[table_name = "locations"]
-pub struct NewSqlLocation {
+pub struct NewLocation {
     pub name: String,
     pub address: String,
+}
+
+#[derive(Clone, Debug, AsChangeset, GraphQLInputObject)]
+#[table_name = "locations"]
+pub struct UpdateLocation {
+    pub name: Option<String>,
+    pub address: Option<String>,
 }
