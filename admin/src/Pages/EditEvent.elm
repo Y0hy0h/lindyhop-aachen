@@ -3,9 +3,6 @@ module Pages.EditEvent exposing
     , EventInput
     , InputModel
     , InputMsg
-    , LoadError(..)
-    , LoadModel
-    , LoadMsg
     , Model
     , Msg
     , eventFromInputs
@@ -13,16 +10,15 @@ module Pages.EditEvent exposing
     , initBatchAddModel
     , update
     , updateInputs
-    , updateLoad
     , view
     , viewEditEvent
     )
 
-import Css exposing (em, flexStart, px, row, zero)
+import Css exposing (em, flexStart, int, px, row, vh, zero)
 import Css.Global as Css
 import Date exposing (Date)
 import Events exposing (Event, Location, Locations, Occurrence)
-import Html.Styled as Html exposing (Html, a, div, h2, h3, input, label, li, ol, p, text, textarea)
+import Html.Styled as Html exposing (Html, a, details, div, h2, h3, input, label, li, ol, p, summary, text, textarea)
 import Html.Styled.Attributes exposing (css, href, type_, value)
 import Html.Styled.Events exposing (onInput)
 import Http
@@ -55,9 +51,15 @@ import Utils.TimeFormat as TimeFormat
 import Utils.Validate as Validate exposing (Validator)
 
 
-type alias Model =
+type Model
+    = Valid ModelData
+    | Invalid String
+
+
+type alias ModelData =
     { eventId : Id Event
     , event : Event
+    , today : Naive.DateTime
     , inputs : InputModel
     , locations : Locations
     }
@@ -72,7 +74,6 @@ type alias InputModel =
 type alias BatchAddModel =
     { inputs : BatchOccurrenceInput
     , dates : MultiselectCalendar.Model
-    , status : DisplayStatus
     }
 
 
@@ -121,7 +122,6 @@ initBatchAddModel locations =
     in
     ( { inputs = emptyBatchOccurrenceInput locations
       , dates = calendarModel
-      , status = Hidden
       }
     , Cmd.map (InputBatchAdd << BatchMultiselectCalendarMsg) calendarMsg
     )
@@ -214,22 +214,8 @@ locationIdValidator locations =
         )
 
 
-type alias LoadModel =
-    { rawId : String
-    }
-
-
-init : Naive.DateTime -> String -> ( LoadModel, Cmd LoadMsg )
-init today rawId =
-    let
-        fetchEventsMsg =
-            Events.fetchStore today FetchedEvents
-    in
-    ( LoadModel rawId, fetchEventsMsg )
-
-
-fromEvents : String -> Events.Store -> Maybe ( Model, Cmd Msg )
-fromEvents rawId store =
+init : Naive.DateTime -> Events.Store -> String -> ( Model, Cmd Msg )
+init today store rawId =
     let
         events =
             Events.events store
@@ -250,12 +236,14 @@ fromEvents rawId store =
                     loadedModel =
                         { eventId = id
                         , event = event
+                        , today = today
                         , locations = locations
                         , inputs = inputModel
                         }
                 in
-                ( loadedModel, Cmd.map Input inputMsg )
+                ( Valid loadedModel, Cmd.map Input inputMsg )
             )
+        |> Maybe.withDefault ( Invalid rawId, Cmd.none )
 
 
 inputModelFromEvents : Locations -> Event -> ( InputModel, Cmd InputMsg )
@@ -270,27 +258,6 @@ inputModelFromEvents locations event =
             }
     in
     ( model, batchAddMsg )
-
-
-type LoadMsg
-    = FetchedEvents (Result Http.Error Events.Store)
-
-
-type LoadError
-    = Http Http.Error
-    | InvalidId String
-
-
-updateLoad : LoadMsg -> LoadModel -> Result LoadError ( Model, Cmd Msg )
-updateLoad msg model =
-    case msg of
-        FetchedEvents result ->
-            Result.mapError Http result
-                |> Result.andThen
-                    (\events ->
-                        fromEvents model.rawId events
-                            |> Result.fromMaybe (InvalidId model.rawId)
-                    )
 
 
 type Msg
@@ -324,8 +291,7 @@ type OccurrenceMsg
 
 
 type BatchAddMsg
-    = ClickedBatchAdd
-    | BatchMultiselectCalendarMsg MultiselectCalendar.Msg
+    = BatchMultiselectCalendarMsg MultiselectCalendar.Msg
     | BatchAddInputMsg BatchAddInputMsg
 
 
@@ -337,6 +303,16 @@ type BatchAddInputMsg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    case model of
+        Valid data ->
+            updateModelData msg data |> Tuple.mapFirst Valid
+
+        Invalid _ ->
+            ( model, Cmd.none )
+
+
+updateModelData : Msg -> ModelData -> ( ModelData, Cmd Msg )
+updateModelData msg model =
     case msg of
         Input inputMsg ->
             let
@@ -350,7 +326,7 @@ update msg model =
                 cmd =
                     case eventFromInputs model.locations model.inputs.eventInputs of
                         Just event ->
-                            Events.updateEvent model.eventId event SaveFinished
+                            Events.updateEvent model.today model.eventId event SaveFinished
 
                         Nothing ->
                             Cmd.none
@@ -481,16 +457,8 @@ updateEventInputs locations msg event =
 updateBatchAdd : Locations -> BatchAddMsg -> BatchAddModel -> BatchAddModel
 updateBatchAdd locations msg model =
     case msg of
-        ClickedBatchAdd ->
-            { model | status = toggle model.status }
-
         BatchAddInputMsg batchMsg ->
-            case model.status of
-                Shown ->
-                    { model | inputs = updateBatchAddInput batchMsg model.inputs }
-
-                _ ->
-                    model
+            { model | inputs = updateBatchAddInput batchMsg model.inputs }
 
         BatchMultiselectCalendarMsg calendarMsg ->
             { model | dates = MultiselectCalendar.update calendarMsg model.dates }
@@ -515,21 +483,39 @@ updateBatchAddInput msg input =
 
 view : Model -> List (Html Msg)
 view model =
+    case model of
+        Valid data ->
+            viewModelData data
+
+        Invalid rawId ->
+            viewInvalid rawId
+
+
+viewModelData : ModelData -> List (Html Msg)
+viewModelData model =
     [ Utils.breadcrumbs [ Routes.Overview ] (Routes.EditEvent <| IdDict.encodeIdForUrl model.eventId) ]
         ++ (List.map (Html.map Input) <| viewEditEvent model.locations model.inputs)
-        ++ [ div [ css [ Css.displayFlex, Css.flexDirection row ] ]
-                [ let
-                    options =
-                        { enabledness =
-                            if changed model then
-                                Utils.Enabled
+        ++ [ Utils.bottomToolbar
+                [ div
+                    [ css
+                        [ Css.displayFlex
+                        , Css.flexDirection row
+                        , Css.justifyContent Css.spaceBetween
+                        ]
+                    ]
+                    [ let
+                        options =
+                            { enabledness =
+                                if changedAndValid model then
+                                    Utils.Enabled
 
-                            else
-                                Utils.Disabled
-                        }
-                  in
-                  Utils.buttonWithOptions options "Speichern" ClickedSave
-                , Utils.button "Löschen" ClickedDelete
+                                else
+                                    Utils.Disabled
+                            }
+                      in
+                      Utils.buttonWithOptions options "Speichern" ClickedSave
+                    , Utils.button "Löschen" ClickedDelete
+                    ]
                 ]
            ]
 
@@ -545,36 +531,14 @@ viewEditEvent locations inputs =
                 inputs.eventInputs.occurrences
 
         controls =
-            [ let
-                batchAddLabel =
-                    case inputs.batchAdd.status of
-                        Shown ->
-                            "Mehrtermindialog schließen"
-
-                        Hidden ->
-                            "Mehrere Termine hinzufügen"
-              in
-              div
-                [ css
-                    [ Css.marginTop (em 1)
-                    , Css.padding (em 1)
-                    , Css.border3 (px 1) Css.solid (Css.rgb 0 0 0)
+            [ div
+                [ css [ Css.padding (em 1) ] ]
+                [ details
+                    []
+                    [ summary [ css [ Css.cursor Css.pointer ] ] [ text "Neue Termine hinzufügen" ]
+                    , div [ css [ Css.marginTop (em 1) ] ] (viewBatchAdd locations inputs.batchAdd)
                     ]
                 ]
-                ([ Utils.button "Neuer Termin" (InputEvent AddOccurrence)
-                 , Utils.button batchAddLabel (InputBatchAdd ClickedBatchAdd)
-                 ]
-                    ++ (case inputs.batchAdd.status of
-                            Shown ->
-                                [ div
-                                    [ css [ Css.marginTop (em 1) ] ]
-                                    (viewBatchAdd locations inputs.batchAdd)
-                                ]
-
-                            _ ->
-                                []
-                       )
-                )
             ]
     in
     [ fields
@@ -584,7 +548,20 @@ viewEditEvent locations inputs =
         ]
     , h2 [] [ text "Termine" ]
     , ol [ css [ spreadListItemStyle ] ]
-        ([ div [ css [ Css.marginBottom (em 1) ] ] controls ]
+        ([ div
+            [ css
+                [ Css.marginBottom (em 1)
+                , Css.position Css.sticky
+                , Css.top zero
+                , Css.zIndex (int 1)
+                , Css.border3 (px 1) Css.solid (Css.rgb 0 0 0)
+                , Css.backgroundColor (Css.hsla 0 0 1 0.9)
+                , Css.maxHeight (vh 100)
+                , Css.overflow Css.auto
+                ]
+            ]
+            controls
+         ]
             ++ occurrences
         )
     ]
@@ -612,23 +589,15 @@ viewBatchAdd locations input =
                 IdDict.map (\id location -> { name = location.name, value = IdDict.encodeIdForUrl id }) locations
           in
           div []
-            ([ Utils.viewSelection "Ort" input.inputs.locationId options (InputBatchAdd << BatchAddInputMsg << BatchInputLocationId)
-             ]
-                ++ (case extract input.inputs.locationId of
-                        Just id ->
-                            [ a [ href <| Routes.toRelativeUrl <| Routes.EditLocation (IdDict.encodeIdForUrl id) ] [ text "Bearbeiten" ] ]
-
-                        Nothing ->
-                            []
-                   )
-            )
+            [ Utils.viewSelection "Ort" input.inputs.locationId options (InputBatchAdd << BatchAddInputMsg << BatchInputLocationId)
+            ]
         ]
     , Utils.button "Hinzufügen" BatchAddRequested
     ]
 
 
-changed : Model -> Bool
-changed model =
+changedAndValid : ModelData -> Bool
+changedAndValid model =
     eventFromInputs model.locations model.inputs.eventInputs
         |> Maybe.map (\newEvent -> newEvent /= model.event)
         |> Maybe.withDefault False
@@ -689,15 +658,12 @@ viewEditOccurrence locations index occurrence =
                 IdDict.map (\id location -> { name = location.name, value = IdDict.encodeIdForUrl id }) locations
           in
           div []
-            ([ Utils.viewSelection "Ort" occurrence.locationId options (occMsg << InputLocationId)
-             ]
-                ++ (case extract occurrence.locationId of
-                        Just id ->
-                            [ a [ href <| Routes.toRelativeUrl <| Routes.EditLocation (IdDict.encodeIdForUrl id) ] [ text "Bearbeiten" ] ]
-
-                        Nothing ->
-                            []
-                   )
-            )
+            [ Utils.viewSelection "Ort" occurrence.locationId options (occMsg << InputLocationId)
+            ]
         , Utils.button "Löschen" (occMsg InputClickedDelete)
         ]
+
+
+viewInvalid : String -> List (Html Msg)
+viewInvalid rawId =
+    [ text "Dieses Event scheint nicht zu existieren." ]

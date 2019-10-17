@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 
 use super::Id;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq)] // Hash, PartialEq, and Eq required, because Derive does not understand bounds on `Id`'s PhantomData. See https://github.com/rust-lang/rust/issues/26925
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq)] // Hash, PartialEq, and Eq required because Derive does not understand bounds on `Id`'s PhantomData. See https://github.com/rust-lang/rust/issues/26925
 pub struct Event {
     pub title: String,
     pub teaser: String,
     pub description: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq)] // Hash, PartialEq, and Eq required, because Derive does not understand bounds on `Id`'s PhantomData. See https://github.com/rust-lang/rust/issues/26925
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq)] // Hash, PartialEq, and Eq required because Derive does not understand bounds on `Id`'s PhantomData. See https://github.com/rust-lang/rust/issues/26925
 pub struct Occurrence {
     pub start: NaiveDateTime,
     pub duration: Duration,
@@ -29,7 +29,7 @@ impl Occurrence {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq)] // Hash, PartialEq, and Eq required, because Derive does not understand bounds on `Id`'s PhantomData. See https://github.com/rust-lang/rust/issues/26925
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq)] // Hash, PartialEq, and Eq required because Derive does not understand bounds on `Id`'s PhantomData. See https://github.com/rust-lang/rust/issues/26925
 pub struct Location {
     pub name: String,
     pub address: String,
@@ -63,5 +63,6 @@ pub struct EventWithOccurrences {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct OccurrenceWithEvent {
     pub occurrence: OccurrenceWithLocation,
+    pub event_id: Id<Event>,
     pub event: Event,
 }

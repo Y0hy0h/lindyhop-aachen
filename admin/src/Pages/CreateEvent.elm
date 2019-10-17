@@ -1,12 +1,8 @@
 module Pages.CreateEvent exposing
-    ( LoadModel
-    , LoadMsg
-    , Model
+    ( Model
     , Msg
-    , fromEvents
     , init
     , update
-    , updateLoad
     , view
     )
 
@@ -49,26 +45,14 @@ import Utils.Validate as Validate exposing (Validator)
 
 type alias Model =
     { key : Browser.Key
+    , today : Naive.DateTime
     , inputs : Edit.InputModel
     , locations : Locations
     }
 
 
-type alias LoadModel =
-    { key : Browser.Key }
-
-
-init : Browser.Key -> Naive.DateTime -> ( LoadModel, Cmd LoadMsg )
-init key today =
-    let
-        fetchEvents =
-            Events.fetchStore today FetchedEvents
-    in
-    ( LoadModel key, fetchEvents )
-
-
-fromEvents : Browser.Key -> Events.Store -> ( Model, Cmd Msg )
-fromEvents key store =
+init : Browser.Key -> Naive.DateTime -> Events.Store -> ( Model, Cmd Msg )
+init key today store =
     let
         locations =
             Events.locations store
@@ -86,20 +70,7 @@ fromEvents key store =
             , batchAdd = batchAddModel
             }
     in
-    ( Model key inputs locations, Cmd.map Input batchAddMsg )
-
-
-type LoadMsg
-    = FetchedEvents (Result Http.Error Events.Store)
-
-
-updateLoad : LoadMsg -> LoadModel -> Result Http.Error ( Model, Cmd Msg )
-updateLoad msg model =
-    case msg of
-        FetchedEvents result ->
-            Result.map
-                (fromEvents model.key)
-                result
+    ( Model key today inputs locations, Cmd.map Input batchAddMsg )
 
 
 type Msg
@@ -139,5 +110,7 @@ view : Model -> List (Html Msg)
 view model =
     [ Utils.breadcrumbs [ Routes.Overview ] Routes.CreateEvent ]
         ++ (List.map (Html.map Input) <| Edit.viewEditEvent model.locations model.inputs)
-        ++ [ Utils.button "Speichern" ClickedSave
+        ++ [ Utils.bottomToolbar
+                [ Utils.button "Speichern" ClickedSave
+                ]
            ]

@@ -1,8 +1,5 @@
 module Pages.EditLocation exposing
     ( InputMsg
-    , LoadError(..)
-    , LoadModel
-    , LoadMsg
     , LocationInput
     , Model
     , Msg
@@ -11,7 +8,6 @@ module Pages.EditLocation exposing
     , locationFromInputs
     , update
     , updateInputs
-    , updateLoad
     , view
     , viewEditLocation
     )
@@ -44,7 +40,12 @@ import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
 
 
-type alias Model =
+type Model
+    = Valid ModelData
+    | Invalid String
+
+
+type alias ModelData =
     { locationId : Id Location
     , location : Location
     , inputs : LocationInput
@@ -72,21 +73,18 @@ locationFromInputs inputs =
         (extract inputs.address)
 
 
-type alias LoadModel =
-    { rawId : String
-    }
-
-
-init : Naive.DateTime -> String -> ( LoadModel, Cmd LoadMsg )
-init today rawId =
+init : Events.Store -> String -> ( Model, Cmd msg )
+init store rawId =
     let
-        fetchEvents =
-            Events.fetchStore today FetchedEvents
+        model =
+            fromEvents rawId store
+                |> Maybe.map Valid
+                |> Maybe.withDefault (Invalid rawId)
     in
-    ( LoadModel rawId, fetchEvents )
+    ( model, Cmd.none )
 
 
-fromEvents : String -> Events.Store -> Maybe Model
+fromEvents : String -> Events.Store -> Maybe ModelData
 fromEvents rawId store =
     let
         locations =
@@ -102,29 +100,8 @@ fromEvents rawId store =
                     inputs =
                         inputsFromLocation location
                 in
-                Model id location inputs
+                ModelData id location inputs
             )
-
-
-type LoadMsg
-    = FetchedEvents (Result Http.Error Events.Store)
-
-
-type LoadError
-    = Http Http.Error
-    | InvalidId String
-
-
-updateLoad : LoadMsg -> LoadModel -> Result LoadError Model
-updateLoad msg model =
-    case msg of
-        FetchedEvents result ->
-            Result.mapError Http result
-                |> Result.andThen
-                    (\events ->
-                        fromEvents model.rawId events
-                            |> Result.fromMaybe (InvalidId model.rawId)
-                    )
 
 
 type Msg
@@ -142,6 +119,17 @@ type InputMsg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    case model of
+        Valid data ->
+            updateModelData msg data
+                |> Tuple.mapFirst Valid
+
+        Invalid _ ->
+            ( model, Cmd.none )
+
+
+updateModelData : Msg -> ModelData -> ( ModelData, Cmd Msg )
+updateModelData msg model =
     case msg of
         Input inputMsg ->
             ( { model | inputs = updateInputs inputMsg model.inputs }, Cmd.none )
@@ -182,7 +170,7 @@ updateInputs msg location =
             { location | address = setInput newAddress location.address }
 
 
-updateLocation : Model -> (LocationInput -> LocationInput) -> Model
+updateLocation : ModelData -> (LocationInput -> LocationInput) -> ModelData
 updateLocation model locationUpdater =
     let
         location =
@@ -196,22 +184,40 @@ updateLocation model locationUpdater =
 
 view : Model -> List (Html Msg)
 view model =
+    case model of
+        Valid data ->
+            viewValid data
+
+        Invalid rawId ->
+            viewInvalid rawId
+
+
+viewValid : ModelData -> List (Html Msg)
+viewValid model =
     [ Utils.breadcrumbs [ Routes.Overview ] (Routes.EditLocation <| IdDict.encodeIdForUrl model.locationId)
     ]
         ++ (List.map (Html.map Input) <| viewEditLocation model.inputs)
-        ++ [ div [ css [ Css.displayFlex, Css.flexDirection row ] ]
-                [ let
-                    options =
-                        { enabledness =
-                            if changed model then
-                                Utils.Enabled
+        ++ [ Utils.bottomToolbar
+                [ div
+                    [ css
+                        [ Css.displayFlex
+                        , Css.flexDirection row
+                        , Css.justifyContent Css.spaceBetween
+                        ]
+                    ]
+                    [ let
+                        options =
+                            { enabledness =
+                                if changed model then
+                                    Utils.Enabled
 
-                            else
-                                Utils.Disabled
-                        }
-                  in
-                  Utils.buttonWithOptions options "Speichern" ClickedSave
-                , Utils.button "Löschen" ClickedDelete
+                                else
+                                    Utils.Disabled
+                            }
+                      in
+                      Utils.buttonWithOptions options "Speichern" ClickedSave
+                    , Utils.button "Löschen" ClickedDelete
+                    ]
                 ]
            ]
 
@@ -225,8 +231,13 @@ viewEditLocation inputs =
     ]
 
 
-changed : Model -> Bool
+changed : ModelData -> Bool
 changed model =
     locationFromInputs model.inputs
         |> Maybe.map (\newLocation -> newLocation /= model.location)
         |> Maybe.withDefault False
+
+
+viewInvalid : String -> List (Html Msg)
+viewInvalid rawId =
+    [ text "Dieser Ort scheint nicht zu existieren." ]

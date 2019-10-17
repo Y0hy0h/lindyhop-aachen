@@ -192,29 +192,29 @@ createEvent event toMsg =
     apiRequest
         { method = Post
         , url = [ "events" ]
-        , queries = queryAll
+        , queries = []
         , body = Just <| encodeEvent event
         , expect = Http.expectJson toMsg decodeUnsafeId
         }
 
 
-readEvent : Locations -> Id Event -> (Result Http.Error Event -> msg) -> Cmd msg
-readEvent locs id toMsg =
+readEvent : Naive.DateTime -> Locations -> Id Event -> (Result Http.Error Event -> msg) -> Cmd msg
+readEvent today locs id toMsg =
     apiRequest
         { method = Get
         , url = [ "events", IdDict.encodeIdForUrl id ]
-        , queries = queryAll
+        , queries = queryUpcoming today
         , body = Nothing
         , expect = Http.expectJson toMsg (decodeEvent locs)
         }
 
 
-updateEvent : Id Event -> Event -> (Result Http.Error () -> msg) -> Cmd msg
-updateEvent id event toMsg =
+updateEvent : Naive.DateTime -> Id Event -> Event -> (Result Http.Error () -> msg) -> Cmd msg
+updateEvent today id event toMsg =
     apiRequest
         { method = Put
         , url = [ "events", IdDict.encodeIdForUrl id ]
-        , queries = queryAll
+        , queries = queryUpcoming today
         , body = Just <| encodeEvent event
         , expect = Http.expectWhatever toMsg
         }
@@ -225,7 +225,7 @@ deleteEvent locs id toMsg =
     apiRequest
         { method = Delete
         , url = [ "events", IdDict.encodeIdForUrl id ]
-        , queries = queryAll
+        , queries = []
         , body = Nothing
         , expect = Http.expectJson toMsg (decodeEvent locs)
         }
@@ -236,7 +236,7 @@ createLocation location toMsg =
     apiRequest
         { method = Post
         , url = [ "locations" ]
-        , queries = queryAll
+        , queries = []
         , body = Just <| encodeLocation location
         , expect = Http.expectJson toMsg decodeUnsafeId
         }
@@ -247,7 +247,7 @@ readLocation id toMsg =
     apiRequest
         { method = Get
         , url = [ "locations", IdDict.encodeIdForUrl id ]
-        , queries = queryAll
+        , queries = []
         , body = Nothing
         , expect = Http.expectJson toMsg decodeLocation
         }
@@ -258,7 +258,7 @@ updateLocation id location toMsg =
     apiRequest
         { method = Put
         , url = [ "locations", IdDict.encodeIdForUrl id ]
-        , queries = queryAll
+        , queries = []
         , body = Just <| encodeLocation location
         , expect = Http.expectWhatever toMsg
         }
@@ -269,7 +269,7 @@ deleteLocation id toMsg =
     apiRequest
         { method = Delete
         , url = [ "locations", IdDict.encodeIdForUrl id ]
-        , queries = queryAll
+        , queries = []
         , body = Nothing
         , expect = Http.expectJson toMsg decodeLocation
         }

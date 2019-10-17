@@ -9,16 +9,16 @@ The start page shows her that this week's social takes place at Sencillito.
 Hanna is lucky to have looked it up now, because she needs to take a right turn at the next intersection.
 
 ## Passer by
-Peter will travel from Romania to Aachen to visit his long-distance girlfriend. Since Peter will miss a Lindy Hop social in Brașov, he is curious whether he might dance some Lindy Hop in Aachen. He googles it and finds the Lindy Hop Aachen website.
+Peter will travel from Romania to Aachen to visit his long-distance girlfriend. Since Peter will miss a Lindy Hop social in Brașov, he is curious whether he might dance some Lindy Hop in Aachen. He googles "lindy hop aachen" and finds the Lindy Hop Aachen website.
 
-He sees that during his stay in Aachen there will be two events, and he clicks on them for more information. He notices that the entry is free, but that he should buy some drinks at the bar, because they provide the room for free.
+He sees that during his stay in Aachen there will be two events, and he clicks on them for more information. He notices that the entry is free, but that he is encouraged to buy some drinks at the bar.
 
 What a great deal, even though he has to pay a lot of drinks for his sweating girlfriend!
 
 ## Ambition
 Naomi wants to try out something new. She already has a little bit of experience with Salsa, but she doesn't really like the music. However, she is curious to try out another dance.
 
-Looking for options in Aachen, she stumbles upon the Lindy Hop Aachen website. There are some events soon, but she doesn't know which ones are suitable for her. She discovers the "Get started" page, where she is introduced to the community and sees some tips on what events she can visit to get a taste, and also links to other material on how to get started with Lindy Hop.
+Looking for options in Aachen, she stumbles upon the Lindy Hop Aachen website. There are some events soon, but she doesn't know which ones are suitable for her. She discovers a page where she is introduced to the community and sees some tips on what events she can visit to get a taste, and also links to other material on how to get started with Lindy Hop.
 
 She goes to her first event, and will end up the greatest Lindy Hop dancer of all time!
 

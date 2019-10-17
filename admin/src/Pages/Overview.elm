@@ -1,20 +1,18 @@
 module Pages.Overview exposing
-    ( LoadModel
-    , LoadMsg
-    , Model
+    ( Model
     , init
-    , updateLoad
     , view
     )
 
-import Css exposing (em, inherit, none, zero)
+import Css exposing (em, inherit, none, px, zero)
 import Css.Global as Css
 import Events exposing (Event, Location, Locations, Occurrence)
-import Html.Styled exposing (Html, a, div, h1, h2, li, ol, text)
+import Html.Styled exposing (Html, a, div, h1, h2, h3, li, ol, p, span, text)
 import Html.Styled.Attributes exposing (css, href)
 import Http
 import IdDict exposing (encodeIdForUrl)
 import Routes
+import String.Extra as String
 import Time
 import Utils.NaiveDateTime as Naive
 import Utils.TimeFormat as TimeFormat
@@ -25,56 +23,38 @@ type alias Model =
     }
 
 
-type alias LoadModel =
-    {}
-
-
-init : Naive.DateTime -> ( LoadModel, Cmd LoadMsg )
-init today =
-    let
-        fetchEvents =
-            Events.fetchStore today FetchedEvents
-    in
-    ( LoadModel, fetchEvents )
-
-
-type LoadMsg
-    = FetchedEvents (Result Http.Error Events.Store)
-
-
-updateLoad : LoadMsg -> LoadModel -> Result Http.Error Model
-updateLoad msg model =
-    case msg of
-        FetchedEvents result ->
-            Result.map Model result
+init : Events.Store -> Model
+init store =
+    { store = store }
 
 
 view : Model -> List (Html msg)
 view model =
-    [ h1 [] [ text "Admin" ]
+    [ h1 [ css [ Css.marginBottom zero ] ] [ text "Lindy Hop Aachen Admin" ]
+    , a [ href "/" ] [ text "Zurück zur Website" ]
     , h2 [] [ text "Veranstaltungen" ]
-    , ol [ css [ listStyle, spreadListItemStyle ] ]
+    , a [ href (Routes.toRelativeUrl <| Routes.CreateEvent) ] [ text "Neue Veranstaltung" ]
+    , ol [ css [ listStyle, spreadListItemStyle, Css.marginTop (em 0.5) ] ]
         (Events.mapEvents
             (\id event ->
                 li []
-                    [ a [ href (Routes.toRelativeUrl <| Routes.EditEvent <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.EditEvent <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle, focusBoxStyle ] ]
                         [ viewEvent (Events.locations model.store) event ]
                     ]
             )
             model.store
-            ++ [ a [ href (Routes.toRelativeUrl <| Routes.CreateEvent) ] [ text "Neue Veranstaltung" ] ]
         )
     , h2 [] [ text "Orte" ]
-    , ol [ css [ listStyle, spreadListItemStyle ] ]
+    , a [ href (Routes.toRelativeUrl <| Routes.CreateLocation) ] [ text "Neuer Ort" ]
+    , ol [ css [ listStyle, spreadListItemStyle, Css.marginTop (em 0.5) ] ]
         (Events.mapLocations
             (\id location ->
                 li []
-                    [ a [ href (Routes.toRelativeUrl <| Routes.EditLocation <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle ] ]
+                    [ a [ href (Routes.toRelativeUrl <| Routes.EditLocation <| IdDict.encodeIdForUrl id), css [ hiddenLinkStyle, focusBoxStyle ] ]
                         [ viewLocation location ]
                     ]
             )
             model.store
-            ++ [ a [ href (Routes.toRelativeUrl <| Routes.CreateLocation) ] [ text "Neuer Ort" ] ]
         )
     ]
 
@@ -84,9 +64,6 @@ hiddenLinkStyle =
     Css.batch
         [ Css.color inherit
         , Css.textDecoration inherit
-        , Css.hover
-            [ Css.color (Css.rgba 0 0 0 0.6)
-            ]
         ]
 
 
@@ -123,23 +100,51 @@ viewEvent locations event =
         occurrencesPreview =
             List.take max event.occurrences
 
-        doesOverflow =
-            List.length event.occurrences > max
+        remaining =
+            List.length event.occurrences - List.length occurrencesPreview
 
         occurrenceListItems =
             List.map (\occurrence -> li [] [ viewOccurrence locations occurrence ]) occurrencesPreview
 
-        listItems =
-            occurrenceListItems
-                ++ (if doesOverflow then
-                        [ li [] [ text "…" ] ]
+        hintStyle =
+            Css.fontStyle Css.italic
 
-                    else
-                        []
-                   )
+        listItems =
+            if List.length occurrenceListItems == 0 then
+                [ span [ css [ hintStyle ] ] [ text "Keine Termine." ] ]
+
+            else
+                occurrenceListItems
+                    ++ (if remaining > 0 then
+                            let
+                                pluralized =
+                                    if remaining > 1 then
+                                        "weitere Termine"
+
+                                    else
+                                        "weiterer Termin"
+                            in
+                            [ li [ css [ hintStyle ] ] [ text <| "(+" ++ String.fromInt remaining ++ " " ++ pluralized ++ ")" ] ]
+
+                        else
+                            []
+                       )
+
+        shortenedDescription =
+            String.softEllipsis 100 event.description
     in
-    div []
-        [ text event.title
+    div
+        [ css
+            [ Css.property "display" "grid"
+            , Css.property "grid-template-columns" "repeat(auto-fit, minmax(12em, 1fr))"
+            , itemBoxStyle
+            ]
+        ]
+        [ div []
+            [ h3 [ css [ itemHeadingStyle ] ] [ text event.title ]
+            , p [] [ text event.teaser ]
+            , p [] [ text shortenedDescription ]
+            ]
         , ol [ css [ listStyle, Css.paddingLeft (em 1) ] ] listItems
         ]
 
@@ -156,6 +161,38 @@ viewOccurrence locations occurrence =
 
 viewLocation : Location -> Html msg
 viewLocation location =
-    div []
-        [ text <| location.name ++ " (" ++ location.address ++ ")"
+    div [ css [ itemBoxStyle ] ]
+        [ h3 [ css [ itemHeadingStyle ] ] [ text <| location.name ]
+        , p [] [ text location.address ]
+        ]
+
+
+itemBoxStyle : Css.Style
+itemBoxStyle =
+    Css.batch
+        [ Css.boxSizing Css.borderBox
+        , Css.padding (em 1)
+        ]
+
+
+focusBoxStyle : Css.Style
+focusBoxStyle =
+    let
+        focusStyle =
+            Css.batch
+                [ Css.outlineWidth (px 3)
+                ]
+    in
+    Css.batch
+        [ Css.outline3 (px 1) Css.solid (Css.rgb 0 0 0)
+        , Css.hover [ focusStyle ]
+        , Css.focus [ focusStyle ]
+        ]
+
+
+itemHeadingStyle : Css.Style
+itemHeadingStyle =
+    Css.batch
+        [ Css.margin zero
+        , Css.marginBottom (em 1)
         ]

@@ -16,7 +16,7 @@
         "watch:styles": "npm run compile:styles -- --watch",
         "watch:admin": "chokidar admin/src/*.elm admin/src/**/*.elm -c \"npm run compile:admin\" --initial",
         "watch:server": "cargo watch -x run -w src/ -w Cargo.toml ",
-        "test": "npm run test:admin",
+        "test": "npm run build:node && npm run test:admin",
         "test:admin": "(cd admin && elm-format . --validate && elm-test)"
     },
     "devDependencies": {

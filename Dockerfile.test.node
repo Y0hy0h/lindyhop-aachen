@@ -4,6 +4,7 @@ WORKDIR node
 
 COPY ./package.json ./package.json
 RUN npm install
+COPY ./styles ./styles
 COPY ./admin ./admin
 
 CMD [ "npm", "run", "test" ]

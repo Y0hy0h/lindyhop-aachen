@@ -92,5 +92,7 @@ view model =
     [ Utils.breadcrumbs [ Routes.Overview ] Routes.CreateLocation
     ]
         ++ (List.map (Html.map Input) <| Edit.viewEditLocation model.inputs)
-        ++ [ Utils.button "Speichern" ClickedSave
+        ++ [ Utils.bottomToolbar
+                [ Utils.button "Speichern" ClickedSave
+                ]
            ]
