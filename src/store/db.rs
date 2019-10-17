@@ -1,4 +1,4 @@
-use juniper::{GraphQLInputObject};
+use juniper::GraphQLInputObject;
 use rocket::Rocket;
 use rocket_contrib::databases::diesel;
 
@@ -81,14 +81,7 @@ pub struct UpdateEvent {
 }
 
 #[derive(
-    Queryable,
-    Insertable,
-    Clone,
-    Debug,
-    Identifiable,
-    PartialEq,
-    AsChangeset,
-    Associations,
+    Queryable, Insertable, Clone, Debug, Identifiable, PartialEq, AsChangeset, Associations,
 )]
 #[belongs_to(Event, foreign_key = "event_id")]
 #[belongs_to(Location, foreign_key = "location_id")]
