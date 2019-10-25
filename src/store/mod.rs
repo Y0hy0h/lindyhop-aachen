@@ -32,9 +32,16 @@ impl Event {
         &self.description
     }
 
-    fn occurrences(&self, context: &Store) -> FieldResult<Vec<Occurrence>> {
+    fn occurrences(
+        &self,
+        context: &Store,
+        filter: Option<OccurrenceFilter>,
+    ) -> FieldResult<Vec<Occurrence>> {
         use db::schema::occurrences::dsl::*;
-        let result = occurrences.filter(event_id.eq(self.id)).load(&*context.0)?;
+        let result = occurrences
+            .filter(event_id.eq(self.id))
+            .filter(filter.unwrap_or_default().to_sql_clause())
+            .load(&*context.0)?;
         Ok(result)
     }
 }
@@ -79,12 +86,52 @@ impl Location {
         &self.address
     }
 
-    fn occurrences(&self, context: &Store) -> FieldResult<Vec<Occurrence>> {
+    fn occurrences(
+        &self,
+        context: &Store,
+        filter: Option<OccurrenceFilter>,
+    ) -> FieldResult<Vec<Occurrence>> {
         use db::schema::occurrences::dsl::*;
         let result = occurrences
             .filter(location_id.eq(self.id))
+            .filter(filter.unwrap_or_default().to_sql_clause())
             .load(&*context.0)?;
         Ok(result)
+    }
+}
+
+#[derive(juniper::GraphQLInputObject, Default)]
+pub struct OccurrenceFilter {
+    after: Option<NaiveDateTime>,
+    before: Option<NaiveDateTime>,
+}
+
+impl OccurrenceFilter {
+    fn to_sql_clause(
+        &self,
+    ) -> Box<
+        dyn BoxableExpression<
+            db::schema::occurrences::table,
+            diesel::sqlite::Sqlite,
+            SqlType = diesel::sql_types::Bool,
+        >,
+    > {
+        use db::schema::occurrences::dsl::*;
+        let mut query: Box<
+            dyn BoxableExpression<
+                db::schema::occurrences::table,
+                diesel::sqlite::Sqlite,
+                SqlType = diesel::sql_types::Bool,
+            >,
+        > = Box::new(true.into_sql::<diesel::sql_types::Bool>());
+        if let Some(before) = self.before {
+            query = Box::new(query.and(start.lt(before)))
+        }
+        if let Some(after) = self.after {
+            query = Box::new(query.and(start.gt(after)))
+        }
+
+        query
     }
 }
 
@@ -213,6 +260,25 @@ impl Mutation {
         let item = locations.find(id_to_remove).first(&*context.0)?;
         diesel::delete(&item).execute(&*context.0)?;
         Ok(item)
+    }
+
+    fn replace_occurrences(
+        context: &Store,
+        event_id: Id,
+        filter: Option<OccurrenceFilter>,
+        new_occurrences: Vec<NewOccurrence>,
+    ) -> FieldResult<Event> {
+        use db::schema::occurrences::dsl as table;
+        let current_occurrences = table::occurrences
+            .filter(table::event_id.eq(event_id))
+            .filter(filter.unwrap_or_default().to_sql_clause());
+        diesel::delete(current_occurrences).execute(&*context.0)?;
+        diesel::insert_into(table::occurrences)
+            .values(new_occurrences)
+            .execute(&*context.0)?;
+        use db::schema::events::dsl as events_table;
+        let result = events_table::events.find(event_id).first(&*context.0)?;
+        Ok(result)
     }
 }
 
