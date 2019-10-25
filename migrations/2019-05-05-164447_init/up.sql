@@ -1,20 +1,20 @@
 CREATE TABLE events (
-    id BINARY(128) PRIMARY KEY NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     title VARCHAR NOT NULL,
     teaser VARCHAR NOT NULL,
     description VARCHAR NOT NULL
 );
 CREATE TABLE locations (
-    id BINARY(128) PRIMARY KEY NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR NOT NULL,
     address VARCHAR NOT NULL
 );
 CREATE TABLE occurrences (
-    id BINARY(128) PRIMARY KEY NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     start TIMESTAMP NOT NULL,
     duration INTEGER NOT NULL,
-    event_id BINARY(128) NOT NULL,
-    location_id BINARY(128) NOT NULL,
+    event_id INTEGER NOT NULL,
+    location_id INTEGER NOT NULL,
     FOREIGN KEY (event_id) REFERENCES events(id),
     FOREIGN KEY (location_id) REFERENCES locations(id)
 );

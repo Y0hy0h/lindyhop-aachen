@@ -1,11 +1,9 @@
-use std::fmt::Debug;
-
-use diesel::{self, prelude::*};
+use juniper::GraphQLInputObject;
 use rocket::Rocket;
-use uuid::Uuid;
+use rocket_contrib::databases::diesel;
 
 #[database("sqlite_database")]
-pub struct Connection(SqliteConnection);
+pub struct Connection(diesel::SqliteConnection);
 
 embed_migrations!();
 
@@ -13,7 +11,10 @@ pub fn initialize(rocket: Rocket) -> Result<Rocket, Rocket> {
     let conn = Connection::get_one(&rocket).expect("Database connection failed.");
 
     match embedded_migrations::run(&*conn) {
-        Ok(()) => Ok(rocket),
+        Ok(()) => {
+            println!("Ran migrations successfully."); // TODO: Use proper logging.
+            Ok(rocket)
+        }
         Err(e) => {
             eprintln!("Failed to run database migrations: {:?}", e);
             Err(rocket)
@@ -24,7 +25,7 @@ pub fn initialize(rocket: Rocket) -> Result<Rocket, Rocket> {
 pub mod schema {
     table! {
         events {
-            id -> Binary,
+            id -> Integer,
             title -> Text,
             teaser -> Text,
             description -> Text,
@@ -32,199 +33,103 @@ pub mod schema {
     }
     table! {
         occurrences {
-            id -> Binary,
-            event_id -> Binary,
+            id -> Integer,
+            event_id -> Integer,
             start -> Timestamp,
             duration -> Integer,
-            location_id -> Binary,
+            location_id -> Integer,
         }
     }
     table! {
         locations {
-            id -> Binary,
+            id -> Integer,
             name -> Text,
             address -> Text,
         }
     }
 }
 
-use std::io::Write;
-use std::marker::PhantomData;
+use chrono::NaiveDateTime;
 
-use super::*;
-use diesel::backend::Backend;
-use diesel::deserialize;
-use diesel::expression::{bound::Bound, AsExpression};
-use diesel::serialize::{self, Output};
-use diesel::sql_types::{Binary, HasSqlType};
-use diesel::sqlite::Sqlite;
-use diesel::types::{FromSql, ToSql};
 use schema::*;
 
-// SqlId implementation inspired by https://github.com/forte-music/core/blob/fc9cd6217708b0dd6ae684df3a53276804479c59/src/models/id.rs#L67
-#[derive(Debug, Deserialize, FromSqlRow, Clone, Hash, PartialEq, Eq)]
-pub struct SqlId<Item>(Uuid, PhantomData<Item>);
-
-impl<Item> From<Uuid> for SqlId<Item> {
-    fn from(uuid: Uuid) -> Self {
-        SqlId(uuid, PhantomData)
-    }
-}
-
-impl<Item> From<SqlId<Item>> for super::Id<Item> {
-    fn from(id: SqlId<Item>) -> super::Id<Item> {
-        id.0.into()
-    }
-}
-
-impl<Item> From<super::Id<Item>> for SqlId<Item> {
-    fn from(id: super::Id<Item>) -> SqlId<Item> {
-        id.id.into()
-    }
-}
-
-impl<DB: Backend + HasSqlType<Binary>, Item: Debug> ToSql<Binary, DB> for SqlId<Item> {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, DB>) -> serialize::Result {
-        let bytes = self.0.as_bytes();
-        <[u8] as ToSql<Binary, DB>>::to_sql(bytes, out)
-    }
-}
-
-impl<Item> FromSql<Binary, Sqlite> for SqlId<Item> {
-    fn from_sql(bytes: Option<&<Sqlite as Backend>::RawValue>) -> deserialize::Result<Self> {
-        let bytes_vec = <Vec<u8> as FromSql<Binary, Sqlite>>::from_sql(bytes)?;
-        Ok(Uuid::from_slice(&bytes_vec)?.into())
-    }
-}
-
-impl<Item> AsExpression<Binary> for SqlId<Item> {
-    type Expression = Bound<Binary, SqlId<Item>>;
-
-    fn as_expression(self) -> Self::Expression {
-        Bound::new(self)
-    }
-}
-
-impl<'a, Item> AsExpression<Binary> for &'a SqlId<Item> {
-    type Expression = Bound<Binary, &'a SqlId<Item>>;
-
-    fn as_expression(self) -> Self::Expression {
-        Bound::new(self)
-    }
-}
+pub type Id = i32;
 
 #[derive(Queryable, Insertable, Debug, Identifiable, Clone, PartialEq, AsChangeset)]
 #[table_name = "events"]
-pub struct SqlEvent {
-    pub id: SqlId<Event>,
+pub struct Event {
+    pub id: Id,
     pub title: String,
     pub teaser: String,
     pub description: String,
 }
 
-impl From<SqlEvent> for (super::Id<Event>, Event) {
-    fn from(event: SqlEvent) -> Self {
-        (
-            event.id.into(),
-            Event {
-                title: event.title,
-                teaser: event.teaser,
-                description: event.description,
-            },
-        )
-    }
+#[derive(Clone, Debug, Insertable, AsChangeset, GraphQLInputObject)]
+#[table_name = "events"]
+pub struct NewEvent {
+    pub title: String,
+    pub teaser: String,
+    pub description: String,
 }
 
-impl From<Event> for SqlEvent {
-    fn from(event: Event) -> SqlEvent {
-        let id = Uuid::new_v4();
-
-        SqlEvent {
-            id: id.into(),
-            title: event.title,
-            teaser: event.teaser,
-            description: event.description,
-        }
-    }
+#[derive(Clone, Debug, AsChangeset, GraphQLInputObject)]
+#[table_name = "events"]
+pub struct UpdateEvent {
+    pub title: Option<String>,
+    pub teaser: Option<String>,
+    pub description: Option<String>,
 }
 
 #[derive(
     Queryable, Insertable, Clone, Debug, Identifiable, PartialEq, AsChangeset, Associations,
 )]
-#[belongs_to(SqlEvent, foreign_key = "event_id")]
-#[belongs_to(SqlLocation, foreign_key = "location_id")]
+#[belongs_to(Event, foreign_key = "event_id")]
+#[belongs_to(Location, foreign_key = "location_id")]
 #[table_name = "occurrences"]
-pub struct SqlOccurrence {
-    pub id: SqlId<Occurrence>,
-    pub event_id: SqlId<Event>,
+pub struct Occurrence {
+    pub id: Id,
+    pub event_id: Id,
     pub start: NaiveDateTime,
     pub duration: i32,
-    pub location_id: SqlId<Location>,
+    pub location_id: Id,
 }
 
-impl From<SqlOccurrence> for (Id<Occurrence>, OccurrenceWithLocation) {
-    fn from(occurrence: SqlOccurrence) -> Self {
-        (
-            occurrence.id.0.into(),
-            (OccurrenceWithLocation {
-                occurrence: Occurrence {
-                    start: occurrence.start,
-                    duration: occurrence.duration as u32,
-                },
-                location_id: occurrence.location_id.into(),
-            }),
-        )
-    }
+#[derive(Clone, Debug, Insertable, AsChangeset, GraphQLInputObject)]
+#[table_name = "occurrences"]
+pub struct NewOccurrence {
+    pub event_id: Id,
+    pub start: NaiveDateTime,
+    pub duration: i32,
+    pub location_id: Id,
 }
 
-impl From<(OccurrenceWithLocation, SqlId<Event>)> for SqlOccurrence {
-    fn from(
-        (
-            OccurrenceWithLocation {
-                occurrence,
-                location_id,
-            },
-            event_id,
-        ): (OccurrenceWithLocation, SqlId<Event>),
-    ) -> SqlOccurrence {
-        let id = Uuid::new_v4();
-
-        SqlOccurrence {
-            id: id.into(),
-            start: occurrence.start,
-            duration: occurrence.duration as i32,
-            location_id: location_id.into(),
-            event_id,
-        }
-    }
+#[derive(Clone, Debug, AsChangeset, GraphQLInputObject)]
+#[table_name = "occurrences"]
+pub struct UpdateOccurrence {
+    pub event_id: Option<Id>,
+    pub start: Option<NaiveDateTime>,
+    pub duration: Option<i32>,
+    pub location_id: Option<Id>,
 }
 
-#[derive(Queryable, Clone, Identifiable, Insertable, Debug, AsChangeset)]
+#[derive(Queryable, Clone, Identifiable, Debug)]
 #[table_name = "locations"]
-pub struct SqlLocation {
-    pub id: SqlId<Location>,
+pub struct Location {
+    pub id: Id,
     pub name: String,
     pub address: String,
 }
-impl From<Location> for SqlLocation {
-    fn from(location: Location) -> SqlLocation {
-        let id = Uuid::new_v4();
 
-        SqlLocation {
-            id: id.into(),
-            name: location.name,
-            address: location.address,
-        }
-    }
+#[derive(Clone, Debug, Insertable, AsChangeset, GraphQLInputObject)]
+#[table_name = "locations"]
+pub struct NewLocation {
+    pub name: String,
+    pub address: String,
 }
-impl From<SqlLocation> for (Id<Location>, Location) {
-    fn from(location: SqlLocation) -> (Id<Location>, Location) {
-        (
-            location.id.into(),
-            Location {
-                name: location.name,
-                address: location.address,
-            },
-        )
-    }
+
+#[derive(Clone, Debug, AsChangeset, GraphQLInputObject)]
+#[table_name = "locations"]
+pub struct UpdateLocation {
+    pub name: Option<String>,
+    pub address: Option<String>,
 }
