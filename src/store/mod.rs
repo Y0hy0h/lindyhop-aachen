@@ -139,25 +139,25 @@ pub struct Query;
 
 #[juniper::object(Context=Store)]
 impl Query {
-    fn all_events(context: &Store) -> FieldResult<Vec<Event>> {
+    pub fn all_events(context: &Store) -> FieldResult<Vec<Event>> {
         use db::schema::events::dsl::*;
         let result = events.load(&*context.0)?;
         Ok(result)
     }
 
-    fn event(context: &Store, id: Id) -> FieldResult<Event> {
+    pub fn event(context: &Store, id: Id) -> FieldResult<Event> {
         use db::schema::events::dsl as table;
         let result = table::events.find(id).first(&*context.0)?;
         Ok(result)
     }
 
-    fn all_locations(context: &Store) -> FieldResult<Vec<Location>> {
+    pub fn all_locations(context: &Store) -> FieldResult<Vec<Location>> {
         use db::schema::locations::dsl::*;
         let result = locations.load(&*context.0)?;
         Ok(result)
     }
 
-    fn location(context: &Store, id: Id) -> FieldResult<Location> {
+    pub fn location(context: &Store, id: Id) -> FieldResult<Location> {
         use db::schema::locations::dsl as table;
         let result = table::locations.find(id).first(&*context.0)?;
         Ok(result)

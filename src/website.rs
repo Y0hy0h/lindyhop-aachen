@@ -5,10 +5,7 @@ use diesel::result::QueryResult;
 use maud::{html, Markup, DOCTYPE};
 use rocket::Rocket;
 
-use crate::store::{
-    Actions, Event, EventWithOccurrences, Id, Location, OccurrenceFilter, OccurrenceWithEvent,
-    OccurrenceWithLocation, Store,
-};
+use crate::store::{Query, Store};
 
 pub fn mount(rocket: Rocket, prefix: &'static str) -> Rocket {
     rocket.mount(
@@ -22,7 +19,7 @@ fn occurrence_overview(store: Store) -> Markup {
     base_html(
         html! {
             ol.schedule {
-                @let locations: HashMap<Id<Location>, Location> = store.all();
+                @let locations = Query::all_locations(&store);
                 @for (date, entries) in store.occurrences_by_date(&OccurrenceFilter::upcoming()) {
                     li { ( render_entry(date, &entries, &locations) ) }
                 }

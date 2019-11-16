@@ -2,7 +2,7 @@
 
 mod api;
 mod store;
-// mod website;
+mod website;
 
 #[macro_use]
 extern crate rocket;
@@ -27,7 +27,7 @@ fn main() {
         .attach(assets_fairing())
         .mount("/", routes![static_file, admin_route, admin_subroute]);
     let rocket = api::mount(rocket, "/api");
-    //let rocket = website::mount(rocket, "/");
+    let rocket = website::mount(rocket, "/");
     rocket.launch();
 }
 
